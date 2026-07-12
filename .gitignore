@@ -1,0 +1,13 @@
+.DS_Store
+.gemini/
+*.log
+.env
+.env.*
+*.env
+student-portal/node_modules/
+student-portal/dist/
+Mobile/.dart_tool/
+Mobile/.flutter-plugins
+Mobile/.flutter-plugins-dependencies
+Mobile/build/
+Mobile/node_modules/

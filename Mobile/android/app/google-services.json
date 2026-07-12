@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "450723447835",
+    "project_id": "national-academy-c0441",
+    "storage_bucket": "national-academy-c0441.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:450723447835:android:3e3b8ed8488f105fb764be",
+        "android_client_info": {
+          "package_name": "com.nationalacademy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "450723447835-km9q8lc1bheogdlaio9tcq1upgr7qabh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKa9qZTdyLN3DVs62xnCf6XUxd-QHIZX0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "450723447835-km9q8lc1bheogdlaio9tcq1upgr7qabh.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "450723447835-5avf10vt5v9ddfcj10781ku5ia0q8bnj.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.nationalacademy.nationalAcademy"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:450723447835:android:b1d5eb76a86e7e6cb764be",
+        "android_client_info": {
+          "package_name": "com.nationalacademy.national_academy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "450723447835-km9q8lc1bheogdlaio9tcq1upgr7qabh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCKa9qZTdyLN3DVs62xnCf6XUxd-QHIZX0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "450723447835-km9q8lc1bheogdlaio9tcq1upgr7qabh.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "450723447835-5avf10vt5v9ddfcj10781ku5ia0q8bnj.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.nationalacademy.nationalAcademy"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

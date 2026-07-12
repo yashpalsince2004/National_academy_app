@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "ios-swift-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "fal3/claude-skills-collection"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "ios-swift-skills@ios-swift-marketplace": true
+  }
+}

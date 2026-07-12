@@ -1,0 +1,36 @@
+@import "katex/dist/katex.min.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-slate-900;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-800 rounded-md hover:bg-slate-700 transition-colors;
+}
+
+/* Glassmorphism Classes */
+.glass-panel {
+  @apply bg-slate-900/60 backdrop-blur-md border border-slate-800/80 shadow-xl;
+}
+.glass-card {
+  @apply bg-slate-900/40 backdrop-blur-sm border border-slate-800/50 hover:border-slate-700/60 transition-all duration-300;
+}
+
+/* Smooth Transitions */
+.transition-smooth {
+  @apply transition-all duration-200 ease-in-out;
+}
