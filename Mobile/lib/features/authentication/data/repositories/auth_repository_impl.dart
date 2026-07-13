@@ -347,5 +347,44 @@ class SupabaseAuthRepositoryImpl implements AuthRepository {
       throw app_exceptions.AuthException('Failed to change password: ${e.toString()}');
     }
   }
+
+  @override
+  Future<void> registerAdmin({
+    required String email,
+    required String username,
+    required String password,
+    required String fullName,
+    String? phone,
+  }) async {
+    try {
+      final response = await supabaseClient.functions.invoke(
+        'create-admin',
+        body: {
+          'email': email.trim().toLowerCase(),
+          'username': username.trim(),
+          'password': password,
+          'fullName': fullName.trim(),
+          'phone': phone?.trim(),
+        },
+      );
+
+      final status = response.status;
+      if (status != 200) {
+        final data = response.data;
+        String errorMessage = 'Admin registration failed. Please try again.';
+        if (data is Map<String, dynamic>) {
+          errorMessage = data['error'] as String? ?? errorMessage;
+        } else if (data is String) {
+          errorMessage = data;
+        }
+        throw app_exceptions.AuthException(errorMessage);
+      }
+    } on supabase.AuthException catch (e) {
+      throw app_exceptions.AuthException(e.message);
+    } catch (e) {
+      if (e is app_exceptions.AuthException) rethrow;
+      throw app_exceptions.AuthException('Registration Error: ${e.toString()}');
+    }
+  }
 }
 

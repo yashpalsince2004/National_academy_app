@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/pdf_service.dart';
+import '../../../../core/widgets/app_dropdown.dart';
 import '../controllers/dpp_history_controller.dart';
 import '../controllers/dpp_generator_controller.dart';
 import '../../data/models/dpp_model.dart';
@@ -63,30 +64,18 @@ class DppHistoryScreen extends ConsumerWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        height: 38,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: borderColor),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: state.selectedDifficulty,
-                            hint: const Text('Difficulty'),
-                            items: const [
-                              DropdownMenuItem(value: 'All', child: Text('All Difficulties', style: TextStyle(fontSize: 13))),
-                              DropdownMenuItem(value: 'Easy', child: Text('Easy', style: TextStyle(fontSize: 13))),
-                              DropdownMenuItem(value: 'Medium', child: Text('Medium', style: TextStyle(fontSize: 13))),
-                              DropdownMenuItem(value: 'Advanced', child: Text('Advanced', style: TextStyle(fontSize: 13))),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) {
-                                ref.read(dppHistoryControllerProvider.notifier).updateFilterDifficulty(val);
-                              }
-                            },
-                          ),
-                        ),
+                      child: AppDropdown<String>(
+                        value: state.selectedDifficulty,
+                        headerText: 'Difficulty',
+                        items: [
+                          AppDropdownItem(value: 'All', label: 'All Difficulties'),
+                          AppDropdownItem(value: 'Easy', label: 'Easy'),
+                          AppDropdownItem(value: 'Medium', label: 'Medium'),
+                          AppDropdownItem(value: 'Advanced', label: 'Advanced'),
+                        ],
+                        onChanged: (val) {
+                          ref.read(dppHistoryControllerProvider.notifier).updateFilterDifficulty(val);
+                        },
                       ),
                     ),
                   ],

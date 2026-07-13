@@ -6,14 +6,13 @@ part of 'admin_model.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$AdminModelImpl _$$AdminModelImplFromJson(Map<String, dynamic> json) =>
-    _$AdminModelImpl(
-      adminId: json['adminId'] as String,
-      name: json['name'] as String,
-      email: json['email'] as String,
-    );
+_AdminModel _$AdminModelFromJson(Map<String, dynamic> json) => _AdminModel(
+  adminId: json['adminId'] as String,
+  name: json['name'] as String,
+  email: json['email'] as String,
+);
 
-Map<String, dynamic> _$$AdminModelImplToJson(_$AdminModelImpl instance) =>
+Map<String, dynamic> _$AdminModelToJson(_AdminModel instance) =>
     <String, dynamic>{
       'adminId': instance.adminId,
       'name': instance.name,

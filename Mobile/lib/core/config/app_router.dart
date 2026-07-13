@@ -11,12 +11,15 @@ import '../../features/authentication/presentation/screens/student_login_screen.
 import '../../features/authentication/presentation/screens/change_password_screen.dart';
 import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
 import '../../features/admin/presentation/screens/student_registration_screen.dart';
+import '../../features/admin/presentation/screens/admin_registration_screen.dart';
+import '../../features/admin/presentation/screens/admin_students_data_screen.dart';
 import '../../features/student/presentation/screens/student_dashboard_screen.dart';
 import '../../features/student/presentation/registration/student_registration_screen.dart' as student_reg;
 import '../../features/batches/presentation/screens/batch_dashboard_screen.dart';
 import '../../features/batches/presentation/screens/batch_details_screen.dart';
 
 import '../../features/authentication/presentation/controllers/auth_controller.dart';
+import '../../features/authentication/presentation/controllers/auth_state.dart';
 import '../../features/authentication/domain/entities/app_user.dart';
 import '../../features/dpp/presentation/screens/dpp_dashboard_screen.dart';
 import '../../features/dpp/presentation/screens/dpp_preview_screen.dart';
@@ -145,6 +148,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/admin/register-student',
         name: 'register-student',
         builder: (context, state) => const StudentRegistrationScreen(),
+      ),
+      GoRoute(
+        path: '/admin/register-admin',
+        name: 'register-admin',
+        builder: (context, state) => const AdminRegistrationScreen(),
+      ),
+      GoRoute(
+        path: '/admin/students',
+        name: 'admin-students',
+        builder: (context, state) => const AdminStudentsDataScreen(),
       ),
       GoRoute(
         path: '/admin/batches',

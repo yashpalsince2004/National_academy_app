@@ -60,6 +60,38 @@ class ProfileTab extends ConsumerWidget {
 
               // ── Settings Action Menu ─────────────────────────────────────────
               _buildSettingsList(context, ref, cardColor, textColor, mutedTextColor),
+              const SizedBox(height: 32),
+
+              // ── Play Store Badge ──────────────────────────────────────────────
+              Center(
+                child: Column(
+                  children: [
+                    Text(
+                      'Get the app on Google Play Store',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: mutedTextColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: GestureDetector(
+                        onTap: () {
+                          // Optional: Launch Play Store URL if needed
+                        },
+                        child: Image.asset(
+                          'assets/images/playstore.png',
+                          height: 44,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

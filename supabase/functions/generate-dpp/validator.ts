@@ -98,8 +98,39 @@ export class PayloadValidator {
         }
       }
 
-      if (!q.explanation || typeof q.explanation !== "string" || q.explanation.trim().length === 0) {
-        errors.push(`Question #${qIdx} is missing a detailed solution/explanation`);
+      if (!q.explanation || typeof q.explanation !== "object") {
+        errors.push(`Question #${qIdx} is missing a structured explanation object`);
+      } else {
+        const exp = q.explanation;
+        if (!exp.correct_answer || typeof exp.correct_answer !== "string" || exp.correct_answer.trim().length === 0) {
+          errors.push(`Question #${qIdx} explanation correct_answer is missing or empty`);
+        }
+        if (!exp.step_by_step || typeof exp.step_by_step !== "string" || exp.step_by_step.trim().length === 0) {
+          errors.push(`Question #${qIdx} explanation step_by_step is missing or empty`);
+        }
+        if (!exp.ncert_reference || typeof exp.ncert_reference !== "string" || exp.ncert_reference.trim().length === 0) {
+          errors.push(`Question #${qIdx} explanation ncert_reference is missing or empty`);
+        }
+        if (!exp.why_others_incorrect || typeof exp.why_others_incorrect !== "object") {
+          errors.push(`Question #${qIdx} explanation why_others_incorrect is missing`);
+        } else {
+          const w = exp.why_others_incorrect;
+          ["A", "B", "C", "D"].forEach((letter) => {
+            if (!w[letter] || typeof w[letter] !== "string" || w[letter].trim().length === 0) {
+              errors.push(`Question #${qIdx} explanation why_others_incorrect for option ${letter} is missing or empty`);
+            }
+          });
+        }
+      }
+
+      if (!q.concept || typeof q.concept !== "string" || q.concept.trim().length === 0) {
+        errors.push(`Question #${qIdx} is missing concept name`);
+      }
+      if (typeof q.difficulty_score !== "number" || q.difficulty_score < 1 || q.difficulty_score > 10) {
+        errors.push(`Question #${qIdx} difficulty_score must be a number between 1 and 10`);
+      }
+      if (!q.source_type || !["NCERT", "PYQ", "Conceptual"].includes(q.source_type.trim())) {
+        errors.push(`Question #${qIdx} source_type must be NCERT, PYQ, or Conceptual`);
       }
     });
 

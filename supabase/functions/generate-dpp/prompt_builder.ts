@@ -71,12 +71,12 @@ CRITICAL CONSTRAINTS:
   }
 
   /**
-   * Dynamically constructs the user generation prompt based on request parameters
+   * Dynamically constructs the user generation prompt based on request parameters and database grounded syllabus topics.
    */
-  public static buildUserPrompt(req: GenerateDppRequest): string {
+  public static buildUserPrompt(req: GenerateDppRequest, approvedTopics: string[]): string {
     const topicsText = req.topics && req.topics.length > 0 
       ? `focused strictly on these topics: ${req.topics.join(", ")}` 
-      : "covering all general topics in the chapter";
+      : `covering these approved syllabus topics: ${approvedTopics.join(", ")}`;
 
     const marksValue = req.marks || (req.questionCount * 4);
     const lang = req.language || "English";
@@ -91,8 +91,24 @@ CRITICAL CONSTRAINTS:
     const allowedList = template.allowed.map(item => `✅ Allowed: ${item}`).join("\n");
     const forbiddenList = template.forbidden.map(item => `❌ STRICTLY FORBIDDEN: ${item}`).join("\n");
 
+    const teacherDirectives = req.teacherInstructions && req.teacherInstructions.length > 0
+      ? req.teacherInstructions.map(instr => `- 📌 SPECIAL TEACHER DIRECTIVE: ${instr}`).join("\n")
+      : "- No special instructions from the teacher.";
+
+    // Advanced exam pattern context
+    const examPatternInfo = req.exam.toUpperCase() === "JEE"
+      ? "JEE Main & Advanced: Heavy mathematical rigour, multi-concept applications, high analytical complexity."
+      : req.exam.toUpperCase() === "NEET"
+      ? "NEET: Strict NCERT alignment, conceptual speed, accuracy, and clear factual application."
+      : "NDA: Standard arithmetic, algebra, and general ability matching UPSC standards.";
+
     return `ROLE
 ${template.role}
+
+------------------------------------
+EXAM PATTERN CONTEXT
+------------------------------------
+${examPatternInfo}
 
 ------------------------------------
 TARGET
@@ -100,7 +116,7 @@ TARGET
 Exam: ${req.exam}
 Subject: ${req.subject}
 Chapter: ${req.chapter}
-Topics: ${topicsText}
+Syllabus Topics to Cover: ${topicsText}
 Difficulty Level: ${req.difficulty}
 Total Questions Requested: ${req.questionCount}
 Time Limit: ${req.duration} minutes
@@ -108,9 +124,18 @@ Total Max Marks: ${marksValue}
 Target Language: ${lang}
 
 ------------------------------------
-PEDAGOGY GUIDELINES
+PEDAGOGY & CURRICULUM GUIDELINES
 ------------------------------------
 ${template.pedagogy}
+- Align questions strictly with NCERT concepts.
+- Reflect recent 5-year PYQ (Previous Year Questions) trends for ${req.exam}.
+- Balanced Bloom's Taxonomy distribution (Remembering, Understanding, Applying, Analyzing, Evaluating).
+- Distribute concepts evenly so that NO concept is repeated across different questions.
+
+------------------------------------
+TEACHER INSTRUCTIONS / DIRECTIVES
+------------------------------------
+${teacherDirectives}
 
 ------------------------------------
 DIFFICULTY WEIGHTS
@@ -124,8 +149,8 @@ CONTENT CONSTRAINTS
 ${allowedList}
 ${forbiddenList}
 - Every question must strictly belong to the subject "${req.subject}" and chapter "${req.chapter}".
-- All 4 options in a question MUST be distinct. Avoid repeating option values or equations (e.g., do not have two options like "$1$").
-- Do NOT mention the exam name, subject name, chapter name, or difficulty level inside the question text or options (e.g. do NOT write "For NEET Biology...", "In Chemistry..."). Just write the direct examination question.
+- All 4 options in a question MUST be distinct. Avoid repeating option values or equations.
+- Do NOT mention the exam name, subject name, chapter name, or difficulty level inside the question text or options. Just write the direct examination question.
 
 ------------------------------------
 OUTPUT FORMAT SCHEMA
@@ -152,11 +177,26 @@ Generate a single JSON object matching this model:
         "Option D text"
       ],
       "answer": "A",
-      "explanation": "Provide a detailed, step-by-step LaTeX solution showing all biological processes, chemical steps, or mathematical derivations depending on the subject.",
+      "explanation": {
+        "correct_answer": "Option letter followed by its text value, e.g., 'A. 5 m/s^2'",
+        "step_by_step": "Detailed step-by-step mathematical derivation or physical/biological reasoning in LaTeX.",
+        "why_others_incorrect": {
+          "A": "Brief scientific reason why Option A is incorrect (or why it is correct if it is the answer)",
+          "B": "Brief scientific reason why Option B is incorrect",
+          "C": "Brief scientific reason why Option C is incorrect",
+          "D": "Brief scientific reason why Option D is incorrect"
+        },
+        "shortcut": "Alternative shortcut method, trick, or formula to solve quickly (if applicable, else empty)",
+        "common_mistake": "Common trap, misconception, or mistake students make while solving this (if applicable, else empty)",
+        "ncert_reference": "Exact chapter, heading, and page range in NCERT textbook, e.g., 'Class 11 Physics Part 1, Chapter 3, Section 3.4, Page 45'"
+      },
+      "concept": "The core conceptual equation, formula, or law tested, e.g., 'Newton's Second Law of Motion'",
       "topic": "The specific sub-topic this question tests",
       "difficulty": "Easy | Medium | Hard",
       "estimated_time": 120,
-      "blooms_level": "Applying | Analyzing | Remembering | Understanding | Evaluating"
+      "blooms_level": "Remembering | Understanding | Applying | Analyzing | Evaluating | Creating",
+      "difficulty_score": 5,
+      "source_type": "NCERT | PYQ | Conceptual"
     }
   ]
 }
@@ -178,7 +218,7 @@ Double-check that the "questions" array contains exactly ${req.questionCount} un
 
     return `SYSTEM
 You are a Senior Curriculum Auditor and Quality Assurance Expert at National Academy.
-Your task is to audit the following generated Daily Practice Problems (DPP) JSON payload for errors, subject contamination, and LaTeX correctness.
+Your task is to audit the following generated Daily Practice Problems (DPP) JSON payload for errors, subject contamination, answer accuracy, grammar, difficulty alignment, and LaTeX correctness.
 
 ---------------
 TARGET CONFIGURATION
@@ -190,14 +230,15 @@ CHAPTER: ${chapter}
 ---------------
 AUDIT CHECKS
 ---------------
-1. SUBJECT MATCH: Ensure EVERY question is strictly from the subject "${subject}" and chapter "${chapter}".
+1. SUBJECT CORRECTNESS: Ensure EVERY question is strictly from the subject "${subject}" and chapter "${chapter}".
 2. ZERO CROSS-CONTAMINATION:
 ${forbiddenList}
-- If the subject is Biology, there must be NO calculus, limits, differentiation, algebra, or math formulas. High difficulty must test advanced biological pathways, terminology, functions, and systems.
-3. UNIQUE OPTIONS: Verify that for every question, the 4 options are completely distinct (e.g., no duplicates like Option A: "$1$" and Option B: "$1$").
-4. NO METADATA LEAK: Check that the question text does NOT mention the exam name, subject name, chapter name, or difficulty level (e.g. check for and remove introductory text like "For NEET Biology...", "In Chemistry..."). Just write the direct examination question.
-5. LATEX FORMATTING: Check that all formulas use $ for inline and $$ for block equations.
-6. ANSWER KEY VALIDITY: Verify that the "answer" field (A, B, C, or D) matches the correct choice and holds a valid letter.
+- If the subject is Biology, there must be NO calculus, limits, differentiation, algebra, or math formulas.
+3. UNIQUE OPTIONS & NO DUPLICATE QUESTIONS: Verify that for every question, the 4 options are completely distinct, and there are no repeated concepts or duplicate question styles.
+4. METADATA & SCHEMA ALIGNMENT: Ensure that each question contains all the requested metadata: 'concept', 'difficulty_score', 'source_type', and the fully structured 'explanation' JSON sub-object.
+5. ANSWER CORRECTNESS: Re-solve each question. Ensure the correct option letter (A, B, C, or D) matches the derivation and the explanation text perfectly.
+6. LATEX FORMATTING: Check that all formulas use $ for inline and $$ for block equations.
+7. GRAMMAR & READABILITY: Correct any grammatical errors, awkward sentences, or confusing options.
 
 ---------------
 INPUT DPP JSON
@@ -207,8 +248,7 @@ ${rawJsonText}
 ---------------
 OUTPUT REQUIREMENT
 ---------------
-If the input DPP JSON is perfect, return it exactly as is.
-If you find any question violating these constraints (e.g. containing math in Biology, duplicated options, incorrect subject, metadata leakage in questions), you MUST rewrite and correct that question to strictly match the requested subject (${subject}), chapter (${chapter}), and guidelines.
+Correct any violations found by rewriting the problematic question or explanation.
 Return ONLY the corrected, valid JSON object matching the input schema. Do not add any conversational text, markdown wrapping, or explanations.`;
   }
 }

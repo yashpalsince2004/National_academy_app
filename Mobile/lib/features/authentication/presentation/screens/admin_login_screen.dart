@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/tactile_button.dart';
 import '../../../../core/utils/validators.dart';
 import '../../domain/entities/app_user.dart';
 import '../controllers/auth_controller.dart';
@@ -71,8 +72,23 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
   void _onLogin() {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
+
+      final input = _emailController.text.trim();
+      String resolvedEmail = input;
+
+      // Check if it's a username (doesn't contain a standard domain dot, or starts with @)
+      final hasStandardDomain = input.contains('.') && input.indexOf('.') > input.indexOf('@');
+      if (!hasStandardDomain) {
+        // Strip leading '@' if present
+        String cleanUsername = input.toLowerCase();
+        if (cleanUsername.startsWith('@')) {
+          cleanUsername = cleanUsername.substring(1);
+        }
+        resolvedEmail = '$cleanUsername@nationalacademy.internal';
+      }
+
       ref.read(authControllerProvider.notifier).login(
-            email: _emailController.text,
+            email: resolvedEmail,
             password: _passwordController.text,
             expectedRole: UserRole.admin,
             onSuccess: () {
@@ -141,7 +157,7 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
 
                 // Email Field
                 Text(
-                  'Email Address',
+                  'Username or Email Address',
                   style: theme.textTheme.titleMedium?.copyWith(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -154,10 +170,15 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                   textInputAction: TextInputAction.next,
                   style: TextStyle(color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimary),
                   decoration: const InputDecoration(
-                    hintText: 'Enter your admin email',
-                    prefixIcon: Icon(Icons.email_outlined, color: AppColors.textLight),
+                    hintText: 'Enter your username or email',
+                    prefixIcon: Icon(Icons.person_outline_rounded, color: AppColors.textLight),
                   ),
-                  validator: Validators.validateEmail,
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Username or Email is required';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 24),
 
@@ -218,18 +239,21 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                 const SizedBox(height: 40),
 
                 // Login Button
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _onLogin,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text('Login'),
+                TactileButton(
+                  onTap: _isLoading ? null : _onLogin,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _onLogin,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text('Login'),
+                  ),
                 ),
                 const SizedBox(height: 24),
                 // Divider
@@ -254,49 +278,53 @@ class _AdminLoginScreenState extends ConsumerState<AdminLoginScreen> {
                   children: [
                     // Google Sign-In Button
                     Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
-                        ),
-                        icon: Image.network(
-                          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/24px-Google_%22G%22_logo.svg.png',
-                          height: 18,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, size: 24),
-                        ),
-                        label: Text(
-                          'Google',
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black87,
-                            fontWeight: FontWeight.bold,
+                      child: TactileButton(
+                        onTap: _isLoading ? null : () => _onSocialLogin(SocialProvider.google),
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
                           ),
+                          icon: Image.network(
+                            'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/24px-Google_%22G%22_logo.svg.png',
+                            height: 18,
+                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata, size: 24),
+                          ),
+                          label: Text(
+                            'Google',
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          onPressed: _isLoading ? null : () => _onSocialLogin(SocialProvider.google),
                         ),
-                        onPressed: _isLoading ? null : () => _onSocialLogin(SocialProvider.google),
                       ),
                     ),
                     const SizedBox(width: 16),
                     // Apple Sign-In Button
                     Expanded(
-                      child: OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
-                        ),
-                        icon: Icon(
-                          Icons.apple_rounded,
-                          color: isDark ? Colors.white : Colors.black,
-                          size: 20,
-                        ),
-                        label: Text(
-                          'Apple',
-                          style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black87,
-                            fontWeight: FontWeight.bold,
+                      child: TactileButton(
+                        onTap: _isLoading ? null : () => _onSocialLogin(SocialProvider.apple),
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: BorderSide(color: isDark ? Colors.grey.shade800 : Colors.grey.shade300),
                           ),
+                          icon: Icon(
+                            Icons.apple_rounded,
+                            color: isDark ? Colors.white : Colors.black,
+                            size: 20,
+                          ),
+                          label: Text(
+                            'Apple',
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          onPressed: _isLoading ? null : () => _onSocialLogin(SocialProvider.apple),
                         ),
-                        onPressed: _isLoading ? null : () => _onSocialLogin(SocialProvider.apple),
                       ),
                     ),
                   ],

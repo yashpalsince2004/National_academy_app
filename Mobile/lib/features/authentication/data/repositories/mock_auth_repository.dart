@@ -176,4 +176,15 @@ class MockAuthRepository implements AuthRepository {
       _authStateController.add(_currentUser);
     }
   }
+
+  @override
+  Future<void> registerAdmin({
+    required String email,
+    required String username,
+    required String password,
+    required String fullName,
+    String? phone,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 600));
+  }
 }

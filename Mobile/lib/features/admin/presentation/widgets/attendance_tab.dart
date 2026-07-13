@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import 'package:national_academy/core/widgets/app_dropdown.dart';
 
 class AttendanceTab extends StatefulWidget {
   const AttendanceTab({super.key});
@@ -58,28 +59,22 @@ class _AttendanceTabState extends State<AttendanceTab> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final showRow = constraints.maxWidth > 400;
-                  final batchDropdown = DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: 'Batch',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    initialValue: selectedBatch,
+                  final batchDropdown = AppDropdown<String>(
+                    label: 'Batch',
+                    headerText: 'Select Batch',
+                    value: selectedBatch ?? '',
                     items: batches.map((batch) {
-                      return DropdownMenuItem(value: batch, child: Text(batch));
+                      return AppDropdownItem(value: batch, label: batch);
                     }).toList(),
                     onChanged: (val) => setState(() => selectedBatch = val),
                   );
 
-                  final subjectDropdown = DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: 'Subject',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    initialValue: selectedSubject,
+                  final subjectDropdown = AppDropdown<String>(
+                    label: 'Subject',
+                    headerText: 'Select Subject',
+                    value: selectedSubject ?? '',
                     items: subjects.map((subj) {
-                      return DropdownMenuItem(value: subj, child: Text(subj));
+                      return AppDropdownItem(value: subj, label: subj);
                     }).toList(),
                     onChanged: (val) => setState(() => selectedSubject = val),
                   );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/widgets/tactile_button.dart';
 import '../../../../core/constants/app_colors.dart';
 
 class RoleSelectionScreen extends StatelessWidget {
@@ -77,6 +78,23 @@ class RoleSelectionScreen extends StatelessWidget {
 
               const Spacer(),
               
+              // Play Store Download Badge
+              MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: GestureDetector(
+                  onTap: () {
+                    // Optional: open play store URL
+                  },
+                  child: Image.asset(
+                    'assets/images/playstore.png',
+                    height: 48,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              
               // Footer
               Text(
                 '© 2026 National Academy. All rights reserved.',
@@ -102,20 +120,19 @@ class RoleSelectionScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Card(
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      color: isDark ? AppColors.surfaceTile1 : AppColors.canvas,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(
-          color: isDark ? const Color(0xFF333335) : AppColors.hairline,
-          width: 1,
+    return TactileButton(
+      onTap: onTap,
+      child: Card(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        color: isDark ? AppColors.surfaceTile1 : AppColors.canvas,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(
+            color: isDark ? const Color(0xFF333335) : AppColors.hairline,
+            width: 1,
+          ),
         ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Row(

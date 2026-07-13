@@ -4,12 +4,30 @@ import '../constants/app_colors.dart';
 class AppTheme {
   AppTheme._();
 
+  static const List<String> _displayFontFallbacks = [
+    '.SF Pro Display',
+    'SF Pro Display',
+    'system-ui',
+    '-apple-system',
+    'sans-serif',
+  ];
+
+  static const List<String> _textFontFallbacks = [
+    '.SF Pro Text',
+    'SF Pro Text',
+    'system-ui',
+    '-apple-system',
+    'sans-serif',
+  ];
+
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       primaryColor: AppColors.primary,
       scaffoldBackgroundColor: AppColors.canvas,
+      fontFamily: '.SF Pro Text',
+      fontFamilyFallback: _textFontFallbacks,
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         onPrimary: AppColors.canvas,
@@ -34,6 +52,8 @@ class AppTheme {
       textTheme: const TextTheme(
         // Hero Display (56px, Weight 600, Tracking -0.28px)
         displayLarge: TextStyle(
+          fontFamily: '.SF Pro Display',
+          fontFamilyFallback: _displayFontFallbacks,
           fontSize: 56,
           fontWeight: FontWeight.w600,
           color: AppColors.ink,
@@ -42,6 +62,8 @@ class AppTheme {
         ),
         // Display Lg (40px, Weight 600)
         displayMedium: TextStyle(
+          fontFamily: '.SF Pro Display',
+          fontFamilyFallback: _displayFontFallbacks,
           fontSize: 40,
           fontWeight: FontWeight.w600,
           color: AppColors.ink,
@@ -50,6 +72,8 @@ class AppTheme {
         ),
         // Lead (28px, Weight 400)
         titleLarge: TextStyle(
+          fontFamily: '.SF Pro Display',
+          fontFamilyFallback: _displayFontFallbacks,
           fontSize: 28,
           fontWeight: FontWeight.w400,
           color: AppColors.ink,
@@ -58,6 +82,8 @@ class AppTheme {
         ),
         // Tagline (21px, Weight 600)
         titleMedium: TextStyle(
+          fontFamily: '.SF Pro Display',
+          fontFamilyFallback: _displayFontFallbacks,
           fontSize: 21,
           fontWeight: FontWeight.w600,
           color: AppColors.ink,
@@ -66,6 +92,8 @@ class AppTheme {
         ),
         // Body (17px, Weight 400, Tracking -0.374px)
         bodyLarge: TextStyle(
+          fontFamily: '.SF Pro Text',
+          fontFamilyFallback: _textFontFallbacks,
           fontSize: 17,
           fontWeight: FontWeight.w400,
           color: AppColors.ink,
@@ -74,6 +102,8 @@ class AppTheme {
         ),
         // Caption (14px, Weight 400, Tracking -0.224px)
         bodyMedium: TextStyle(
+          fontFamily: '.SF Pro Text',
+          fontFamilyFallback: _textFontFallbacks,
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: AppColors.textSecondary,
@@ -82,6 +112,8 @@ class AppTheme {
         ),
         // Fine Print (12px, Weight 400)
         bodySmall: TextStyle(
+          fontFamily: '.SF Pro Text',
+          fontFamilyFallback: _textFontFallbacks,
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: AppColors.textSecondary,
@@ -115,8 +147,20 @@ class AppTheme {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
-        labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14, letterSpacing: -0.224),
-        hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14, letterSpacing: -0.224),
+        labelStyle: const TextStyle(
+          fontFamily: '.SF Pro Text',
+          fontFamilyFallback: _textFontFallbacks,
+          color: AppColors.textSecondary,
+          fontSize: 14,
+          letterSpacing: -0.224,
+        ),
+        hintStyle: const TextStyle(
+          fontFamily: '.SF Pro Text',
+          fontFamilyFallback: _textFontFallbacks,
+          color: AppColors.textSecondary,
+          fontSize: 14,
+          letterSpacing: -0.224,
+        ),
       ),
 
       // Button Themes (Capsules, Shadowless)
@@ -128,6 +172,8 @@ class AppTheme {
           minimumSize: const Size(double.infinity, 44),
           shape: const StadiumBorder(), // Pill radius (9999px)
           textStyle: const TextStyle(
+            fontFamily: '.SF Pro Text',
+            fontFamilyFallback: _textFontFallbacks,
             fontSize: 17,
             fontWeight: FontWeight.w400,
             letterSpacing: -0.374,
@@ -142,6 +188,8 @@ class AppTheme {
           side: const BorderSide(color: AppColors.primary, width: 1.5),
           shape: const StadiumBorder(), // Pill radius (9999px)
           textStyle: const TextStyle(
+            fontFamily: '.SF Pro Text',
+            fontFamilyFallback: _textFontFallbacks,
             fontSize: 17,
             fontWeight: FontWeight.w400,
             letterSpacing: -0.374,
@@ -155,6 +203,8 @@ class AppTheme {
         centerTitle: true,
         iconTheme: IconThemeData(color: AppColors.ink),
         titleTextStyle: TextStyle(
+          fontFamily: '.SF Pro Display',
+          fontFamilyFallback: _displayFontFallbacks,
           color: AppColors.ink,
           fontSize: 21,
           fontWeight: FontWeight.w600,
@@ -170,6 +220,8 @@ class AppTheme {
       brightness: Brightness.dark,
       primaryColor: AppColors.primaryOnDark,
       scaffoldBackgroundColor: AppColors.surfaceTile3,
+      fontFamily: '.SF Pro Text',
+      fontFamilyFallback: _textFontFallbacks,
       colorScheme: const ColorScheme.dark(
         primary: AppColors.primaryOnDark,
         onPrimary: AppColors.surfaceBlack,
@@ -194,6 +246,8 @@ class AppTheme {
       textTheme: const TextTheme(
         // Hero Display
         displayLarge: TextStyle(
+          fontFamily: '.SF Pro Display',
+          fontFamilyFallback: _displayFontFallbacks,
           fontSize: 56,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimaryDark,
@@ -202,6 +256,8 @@ class AppTheme {
         ),
         // Display Lg
         displayMedium: TextStyle(
+          fontFamily: '.SF Pro Display',
+          fontFamilyFallback: _displayFontFallbacks,
           fontSize: 40,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimaryDark,
@@ -210,6 +266,8 @@ class AppTheme {
         ),
         // Lead
         titleLarge: TextStyle(
+          fontFamily: '.SF Pro Display',
+          fontFamilyFallback: _displayFontFallbacks,
           fontSize: 28,
           fontWeight: FontWeight.w400,
           color: AppColors.textPrimaryDark,
@@ -218,6 +276,8 @@ class AppTheme {
         ),
         // Tagline
         titleMedium: TextStyle(
+          fontFamily: '.SF Pro Display',
+          fontFamilyFallback: _displayFontFallbacks,
           fontSize: 21,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimaryDark,
@@ -226,6 +286,8 @@ class AppTheme {
         ),
         // Body
         bodyLarge: TextStyle(
+          fontFamily: '.SF Pro Text',
+          fontFamilyFallback: _textFontFallbacks,
           fontSize: 17,
           fontWeight: FontWeight.w400,
           color: AppColors.textPrimaryDark,
@@ -234,6 +296,8 @@ class AppTheme {
         ),
         // Caption
         bodyMedium: TextStyle(
+          fontFamily: '.SF Pro Text',
+          fontFamilyFallback: _textFontFallbacks,
           fontSize: 14,
           fontWeight: FontWeight.w400,
           color: AppColors.textSecondaryDark,
@@ -242,6 +306,8 @@ class AppTheme {
         ),
         // Fine Print
         bodySmall: TextStyle(
+          fontFamily: '.SF Pro Text',
+          fontFamilyFallback: _textFontFallbacks,
           fontSize: 12,
           fontWeight: FontWeight.w400,
           color: AppColors.textSecondaryDark,
@@ -275,8 +341,20 @@ class AppTheme {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: AppColors.error, width: 1.5),
         ),
-        labelStyle: const TextStyle(color: AppColors.textSecondaryDark, fontSize: 14, letterSpacing: -0.224),
-        hintStyle: const TextStyle(color: AppColors.textSecondaryDark, fontSize: 14, letterSpacing: -0.224),
+        labelStyle: const TextStyle(
+          fontFamily: '.SF Pro Text',
+          fontFamilyFallback: _textFontFallbacks,
+          color: AppColors.textSecondaryDark,
+          fontSize: 14,
+          letterSpacing: -0.224,
+        ),
+        hintStyle: const TextStyle(
+          fontFamily: '.SF Pro Text',
+          fontFamilyFallback: _textFontFallbacks,
+          color: AppColors.textSecondaryDark,
+          fontSize: 14,
+          letterSpacing: -0.224,
+        ),
       ),
 
       // Button Themes (Capsules, Shadowless)
@@ -288,6 +366,8 @@ class AppTheme {
           minimumSize: const Size(double.infinity, 44),
           shape: const StadiumBorder(), // Pill radius (9999px)
           textStyle: const TextStyle(
+            fontFamily: '.SF Pro Text',
+            fontFamilyFallback: _textFontFallbacks,
             fontSize: 17,
             fontWeight: FontWeight.w400,
             letterSpacing: -0.374,
@@ -302,6 +382,8 @@ class AppTheme {
           side: const BorderSide(color: AppColors.primaryOnDark, width: 1.5),
           shape: const StadiumBorder(), // Pill radius (9999px)
           textStyle: const TextStyle(
+            fontFamily: '.SF Pro Text',
+            fontFamilyFallback: _textFontFallbacks,
             fontSize: 17,
             fontWeight: FontWeight.w400,
             letterSpacing: -0.374,
@@ -315,6 +397,8 @@ class AppTheme {
         centerTitle: true,
         iconTheme: IconThemeData(color: AppColors.textPrimaryDark),
         titleTextStyle: TextStyle(
+          fontFamily: '.SF Pro Display',
+          fontFamilyFallback: _displayFontFallbacks,
           color: AppColors.textPrimaryDark,
           fontSize: 21,
           fontWeight: FontWeight.w600,

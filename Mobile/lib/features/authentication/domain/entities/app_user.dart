@@ -53,7 +53,7 @@ enum UserRole {
 }
 
 @freezed
-class AppUser with _$AppUser {
+abstract class AppUser with _$AppUser {
   const factory AppUser({
     required String uid,
     required String email,

@@ -1,5 +1,5 @@
-// coverage:ignore-file
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// coverage:ignore-file
 // ignore_for_file: type=lint
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
@@ -9,203 +9,275 @@ part of 'admin_model.dart';
 // FreezedGenerator
 // **************************************************************************
 
+// dart format off
 T _$identity<T>(T value) => value;
-
-final _privateConstructorUsedError = UnsupportedError(
-  'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models',
-);
-
-AdminModel _$AdminModelFromJson(Map<String, dynamic> json) {
-  return _AdminModel.fromJson(json);
-}
 
 /// @nodoc
 mixin _$AdminModel {
-  String get adminId => throw _privateConstructorUsedError;
-  String get name => throw _privateConstructorUsedError;
-  String get email => throw _privateConstructorUsedError;
+
+ String get adminId; String get name; String get email;
+/// Create a copy of AdminModel
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$AdminModelCopyWith<AdminModel> get copyWith => _$AdminModelCopyWithImpl<AdminModel>(this as AdminModel, _$identity);
 
   /// Serializes this AdminModel to a JSON map.
-  Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
+  Map<String, dynamic> toJson();
 
-  /// Create a copy of AdminModel
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  $AdminModelCopyWith<AdminModel> get copyWith =>
-      throw _privateConstructorUsedError;
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is AdminModel&&(identical(other.adminId, adminId) || other.adminId == adminId)&&(identical(other.name, name) || other.name == name)&&(identical(other.email, email) || other.email == email));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,adminId,name,email);
+
+@override
+String toString() {
+  return 'AdminModel(adminId: $adminId, name: $name, email: $email)';
+}
+
+
 }
 
 /// @nodoc
-abstract class $AdminModelCopyWith<$Res> {
-  factory $AdminModelCopyWith(
-    AdminModel value,
-    $Res Function(AdminModel) then,
-  ) = _$AdminModelCopyWithImpl<$Res, AdminModel>;
-  @useResult
-  $Res call({String adminId, String name, String email});
-}
+abstract mixin class $AdminModelCopyWith<$Res>  {
+  factory $AdminModelCopyWith(AdminModel value, $Res Function(AdminModel) _then) = _$AdminModelCopyWithImpl;
+@useResult
+$Res call({
+ String adminId, String name, String email
+});
 
+
+
+
+}
 /// @nodoc
-class _$AdminModelCopyWithImpl<$Res, $Val extends AdminModel>
+class _$AdminModelCopyWithImpl<$Res>
     implements $AdminModelCopyWith<$Res> {
-  _$AdminModelCopyWithImpl(this._value, this._then);
+  _$AdminModelCopyWithImpl(this._self, this._then);
 
-  // ignore: unused_field
-  final $Val _value;
-  // ignore: unused_field
-  final $Res Function($Val) _then;
+  final AdminModel _self;
+  final $Res Function(AdminModel) _then;
 
-  /// Create a copy of AdminModel
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? adminId = null,
-    Object? name = null,
-    Object? email = null,
-  }) {
-    return _then(
-      _value.copyWith(
-            adminId: null == adminId
-                ? _value.adminId
-                : adminId // ignore: cast_nullable_to_non_nullable
-                      as String,
-            name: null == name
-                ? _value.name
-                : name // ignore: cast_nullable_to_non_nullable
-                      as String,
-            email: null == email
-                ? _value.email
-                : email // ignore: cast_nullable_to_non_nullable
-                      as String,
-          )
-          as $Val,
-    );
-  }
+/// Create a copy of AdminModel
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? adminId = null,Object? name = null,Object? email = null,}) {
+  return _then(_self.copyWith(
+adminId: null == adminId ? _self.adminId : adminId // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
 }
 
-/// @nodoc
-abstract class _$$AdminModelImplCopyWith<$Res>
-    implements $AdminModelCopyWith<$Res> {
-  factory _$$AdminModelImplCopyWith(
-    _$AdminModelImpl value,
-    $Res Function(_$AdminModelImpl) then,
-  ) = __$$AdminModelImplCopyWithImpl<$Res>;
-  @override
-  @useResult
-  $Res call({String adminId, String name, String email});
 }
 
-/// @nodoc
-class __$$AdminModelImplCopyWithImpl<$Res>
-    extends _$AdminModelCopyWithImpl<$Res, _$AdminModelImpl>
-    implements _$$AdminModelImplCopyWith<$Res> {
-  __$$AdminModelImplCopyWithImpl(
-    _$AdminModelImpl _value,
-    $Res Function(_$AdminModelImpl) _then,
-  ) : super(_value, _then);
 
-  /// Create a copy of AdminModel
-  /// with the given fields replaced by the non-null parameter values.
-  @pragma('vm:prefer-inline')
-  @override
-  $Res call({
-    Object? adminId = null,
-    Object? name = null,
-    Object? email = null,
-  }) {
-    return _then(
-      _$AdminModelImpl(
-        adminId: null == adminId
-            ? _value.adminId
-            : adminId // ignore: cast_nullable_to_non_nullable
-                  as String,
-        name: null == name
-            ? _value.name
-            : name // ignore: cast_nullable_to_non_nullable
-                  as String,
-        email: null == email
-            ? _value.email
-            : email // ignore: cast_nullable_to_non_nullable
-                  as String,
-      ),
-    );
-  }
+/// Adds pattern-matching-related methods to [AdminModel].
+extension AdminModelPatterns on AdminModel {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _AdminModel value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _AdminModel() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _AdminModel value)  $default,){
+final _that = this;
+switch (_that) {
+case _AdminModel():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _AdminModel value)?  $default,){
+final _that = this;
+switch (_that) {
+case _AdminModel() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String adminId,  String name,  String email)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _AdminModel() when $default != null:
+return $default(_that.adminId,_that.name,_that.email);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String adminId,  String name,  String email)  $default,) {final _that = this;
+switch (_that) {
+case _AdminModel():
+return $default(_that.adminId,_that.name,_that.email);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String adminId,  String name,  String email)?  $default,) {final _that = this;
+switch (_that) {
+case _AdminModel() when $default != null:
+return $default(_that.adminId,_that.name,_that.email);case _:
+  return null;
+
+}
+}
+
 }
 
 /// @nodoc
 @JsonSerializable()
-class _$AdminModelImpl implements _AdminModel {
-  const _$AdminModelImpl({
-    required this.adminId,
-    required this.name,
-    required this.email,
-  });
 
-  factory _$AdminModelImpl.fromJson(Map<String, dynamic> json) =>
-      _$$AdminModelImplFromJson(json);
+class _AdminModel implements AdminModel {
+  const _AdminModel({required this.adminId, required this.name, required this.email});
+  factory _AdminModel.fromJson(Map<String, dynamic> json) => _$AdminModelFromJson(json);
 
-  @override
-  final String adminId;
-  @override
-  final String name;
-  @override
-  final String email;
+@override final  String adminId;
+@override final  String name;
+@override final  String email;
 
-  @override
-  String toString() {
-    return 'AdminModel(adminId: $adminId, name: $name, email: $email)';
-  }
+/// Create a copy of AdminModel
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$AdminModelCopyWith<_AdminModel> get copyWith => __$AdminModelCopyWithImpl<_AdminModel>(this, _$identity);
 
-  @override
-  bool operator ==(Object other) {
-    return identical(this, other) ||
-        (other.runtimeType == runtimeType &&
-            other is _$AdminModelImpl &&
-            (identical(other.adminId, adminId) || other.adminId == adminId) &&
-            (identical(other.name, name) || other.name == name) &&
-            (identical(other.email, email) || other.email == email));
-  }
-
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  int get hashCode => Object.hash(runtimeType, adminId, name, email);
-
-  /// Create a copy of AdminModel
-  /// with the given fields replaced by the non-null parameter values.
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  @override
-  @pragma('vm:prefer-inline')
-  _$$AdminModelImplCopyWith<_$AdminModelImpl> get copyWith =>
-      __$$AdminModelImplCopyWithImpl<_$AdminModelImpl>(this, _$identity);
-
-  @override
-  Map<String, dynamic> toJson() {
-    return _$$AdminModelImplToJson(this);
-  }
+@override
+Map<String, dynamic> toJson() {
+  return _$AdminModelToJson(this, );
 }
 
-abstract class _AdminModel implements AdminModel {
-  const factory _AdminModel({
-    required final String adminId,
-    required final String name,
-    required final String email,
-  }) = _$AdminModelImpl;
-
-  factory _AdminModel.fromJson(Map<String, dynamic> json) =
-      _$AdminModelImpl.fromJson;
-
-  @override
-  String get adminId;
-  @override
-  String get name;
-  @override
-  String get email;
-
-  /// Create a copy of AdminModel
-  /// with the given fields replaced by the non-null parameter values.
-  @override
-  @JsonKey(includeFromJson: false, includeToJson: false)
-  _$$AdminModelImplCopyWith<_$AdminModelImpl> get copyWith =>
-      throw _privateConstructorUsedError;
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _AdminModel&&(identical(other.adminId, adminId) || other.adminId == adminId)&&(identical(other.name, name) || other.name == name)&&(identical(other.email, email) || other.email == email));
 }
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,adminId,name,email);
+
+@override
+String toString() {
+  return 'AdminModel(adminId: $adminId, name: $name, email: $email)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$AdminModelCopyWith<$Res> implements $AdminModelCopyWith<$Res> {
+  factory _$AdminModelCopyWith(_AdminModel value, $Res Function(_AdminModel) _then) = __$AdminModelCopyWithImpl;
+@override @useResult
+$Res call({
+ String adminId, String name, String email
+});
+
+
+
+
+}
+/// @nodoc
+class __$AdminModelCopyWithImpl<$Res>
+    implements _$AdminModelCopyWith<$Res> {
+  __$AdminModelCopyWithImpl(this._self, this._then);
+
+  final _AdminModel _self;
+  final $Res Function(_AdminModel) _then;
+
+/// Create a copy of AdminModel
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? adminId = null,Object? name = null,Object? email = null,}) {
+  return _then(_AdminModel(
+adminId: null == adminId ? _self.adminId : adminId // ignore: cast_nullable_to_non_nullable
+as String,name: null == name ? _self.name : name // ignore: cast_nullable_to_non_nullable
+as String,email: null == email ? _self.email : email // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+// dart format on

@@ -9,6 +9,7 @@ import { GeminiClient } from "./gemini_client.ts";
 import { ResponseParser } from "./parser.ts";
 import { PayloadValidator } from "./validator.ts";
 import { DatabaseLayer } from "./database.ts";
+import { EmbeddingClient } from "./embedding_client.ts";
 
 serve(async (req) => {
   // Handle CORS preflight request
@@ -58,7 +59,8 @@ serve(async (req) => {
       questionCount,
       duration,
       marks,
-      language = "English"
+      language = "English",
+      teacherInstructions = []
     } = reqBody;
 
     // Strict validation check on inputs
@@ -73,6 +75,34 @@ serve(async (req) => {
       return buildErrorResponse("Invalid parameter: duration must be between 5 and 240 minutes");
     }
 
+    // Privilege admin client for syllabus queries & transaction inserts
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { persistSession: false }
+    });
+
+    // ── 3. Syllabus Grounding & Topic Validation ──────────────────────────
+    const syllabusMetadata = await DatabaseLayer.fetchSyllabusMetadata(adminClient, exam, subject, chapter);
+    if (!syllabusMetadata) {
+      return buildErrorResponse(
+        `Validation Error: Selected Exam "${exam}" -> Subject "${subject}" -> Chapter "${chapter}" is not a valid syllabus path in our knowledge base.`,
+        400
+      );
+    }
+
+    // If custom topics were requested, validate that they are part of the syllabus
+    if (topics && Array.isArray(topics) && topics.length > 0) {
+      const allowedTopicsLower = syllabusMetadata.topics.map(t => t.trim().toLowerCase());
+      const invalidTopics = topics.filter(t => !allowedTopicsLower.includes(String(t).trim().toLowerCase()));
+      
+      if (invalidTopics.length > 0) {
+        return buildErrorResponse(
+          `Validation Error: The following topics do not belong to ${chapter}: [${invalidTopics.join(", ")}]. Allowed topics: [${syllabusMetadata.topics.join(", ")}]`,
+          400
+        );
+      }
+    }
+
     const validatedRequest: GenerateDppRequest = {
       exam,
       subject,
@@ -82,15 +112,18 @@ serve(async (req) => {
       questionCount,
       duration,
       marks: typeof marks === "number" ? marks : undefined,
-      language
+      language,
+      teacherInstructions: Array.isArray(teacherInstructions) ? teacherInstructions : []
     };
 
     console.log(`[generate-dpp] Request Verified: ${exam} - ${subject} (${chapter}), Count: ${questionCount}`);
 
-    // ── 3. Initialize AI Services ──────────────────────────────────────────
+    // ── 4. Initialize AI Services ──────────────────────────────────────────
     const gemini = new GeminiClient();
+    const embeddingClient = new EmbeddingClient();
+    
     const systemPrompt = PromptBuilder.buildSystemInstruction();
-    const userPrompt = PromptBuilder.buildUserPrompt(validatedRequest);
+    const userPrompt = PromptBuilder.buildUserPrompt(validatedRequest, syllabusMetadata.topics);
 
     let parsedPayload: any = null;
     let geminiRawText = "";
@@ -98,16 +131,10 @@ serve(async (req) => {
     let totalPromptTokens = 0;
     let totalCompletionTokens = 0;
     let retryAttempt = 0;
-    const maxAiRetries = 2; // Retry on validation failure
+    const maxAiRetries = 2; // Retry on validation or duplication failure
     let lastError = "";
 
-    // Privilege client for logs & inserts
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { persistSession: false }
-    });
-
-    // ── 4. Generate & Validate Loop (Two-Step: Generate -> Audit -> Validate) ──
+    // ── 5. Generate, Audit, and Semantic Duplicate Check Loop ───────────────
     while (retryAttempt <= maxAiRetries) {
       try {
         console.log(`[generate-dpp] Run #${retryAttempt + 1}: Step 1 - Generating initial DPP...`);
@@ -129,22 +156,30 @@ serve(async (req) => {
         geminiRawText = reviewResult.text;
         parsedPayload = ResponseParser.parseGeminiResponse(geminiRawText);
 
-        // Run validation rules
+        // Run schema and content validation rules
         const validationErrors = PayloadValidator.validate(parsedPayload, validatedRequest);
-        
         if (validationErrors.length > 0) {
           const errStr = validationErrors.join("; ");
           console.warn(`[generate-dpp] Validation failed on Attempt #${retryAttempt + 1}:`, errStr);
           throw new Error(`Validation failed: ${errStr}`);
         }
 
-        // Successfully parsed, audited, and validated
+        // Run Semantic Duplicate Vector Check
+        const questionTexts = parsedPayload.questions.map((q: any) => q.question);
+        const duplicateErrors = await embeddingClient.detectDuplicates(questionTexts, 0.85);
+        if (duplicateErrors.length > 0) {
+          const dupStr = duplicateErrors.join("; ");
+          console.warn(`[generate-dpp] Semantic duplicate detection failed on Attempt #${retryAttempt + 1}:`, dupStr);
+          throw new Error(`Semantic duplicate check failed: ${dupStr}`);
+        }
+
+        // Successfully parsed, audited, validated, and passed semantic deduplication
         break;
 
       } catch (err) {
         retryAttempt++;
         lastError = (err as Error).message;
-        console.error(`[generate-dpp] AI generation or audit phase failed (Attempt ${retryAttempt}/${maxAiRetries + 1}): ${lastError}`);
+        console.error(`[generate-dpp] AI generation, audit, or deduplication phase failed (Attempt ${retryAttempt}/${maxAiRetries + 1}): ${lastError}`);
         
         if (retryAttempt > maxAiRetries) {
           // Log failure state to telemetry
@@ -164,7 +199,7 @@ serve(async (req) => {
       }
     }
 
-    // ── 5. Database Insertion Layer (Transaction-Safe) ──────────────────
+    // ── 6. Database Insertion Layer (Transaction-Safe) ──────────────────
     console.log("[generate-dpp] Saving generated DPP package in transaction...");
     const dppId = await DatabaseLayer.saveDpp(
       adminClient,
@@ -175,7 +210,7 @@ serve(async (req) => {
       geminiRawText
     );
 
-    // ── 6. Log Telemetry to Database ──────────────────────────────────────
+    // ── 7. Log Telemetry to Database ──────────────────────────────────────
     await DatabaseLayer.logAiGeneration(adminClient, {
       userId,
       exam,
@@ -197,7 +232,7 @@ serve(async (req) => {
     console.log(`- Total latency: ${totalProcessingTime}ms`);
     console.log(`- Tokens: ${totalPromptTokens + totalCompletionTokens} (Prompt: ${totalPromptTokens}, Completion: ${totalCompletionTokens})`);
 
-    // ── 7. Return Final Response ──────────────────────────────────────────
+    // ── 8. Return Final Response ──────────────────────────────────────────
     return buildSuccessResponse({
       success: true,
       dppId,

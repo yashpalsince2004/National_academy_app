@@ -4,6 +4,33 @@ import { GenerateDppRequest, GeminiDppPayload, DatabaseDppRow, DatabaseQuestionR
 
 export class DatabaseLayer {
   /**
+   * Fetches chapter metadata and approved topics list from the syllabus knowledge base.
+   */
+  public static async fetchSyllabusMetadata(
+    supabase: SupabaseClient,
+    exam: string,
+    subject: string,
+    chapter: string
+  ): Promise<{ topics: string[] } | null> {
+    console.log(`[Database] Querying syllabus knowledge base for: ${exam} -> ${subject} -> ${chapter}`);
+    
+    const { data, error } = await supabase
+      .from("syllabus")
+      .select("topics")
+      .eq("exam", exam)
+      .ilike("subject", `%${subject}%`)
+      .ilike("chapter", `%${chapter}%`)
+      .maybeSingle();
+
+    if (error) {
+      console.error(`[Database] Failed to fetch syllabus data: ${error.message}`);
+      return null;
+    }
+
+    return data;
+  }
+
+  /**
    * Transactionally saves the generated DPP and associated questions to Supabase.
    * Resolves the subject_id and chapter_id dynamically.
    */
@@ -74,11 +101,11 @@ export class DatabaseLayer {
       config_questions: req.questionCount,
       config_time_minutes: req.duration,
       config_marks_per_question: req.marks ? Math.max(1, Math.floor(req.marks / req.questionCount)) : 4,
-      config_negative_marking: 1.0, // Default to 1.0
+      config_negative_marking: req.exam.toUpperCase() === "JEE" ? 1.0 : req.exam.toUpperCase() === "NEET" ? 1.0 : 0.83, // Exam specific penalties
       config_total_marks: req.marks || (req.questionCount * 4),
       config_question_types: ["Single Correct"], // Default
       ai_generation_option: "Conceptual",
-      additional_instructions: undefined,
+      additional_instructions: req.teacherInstructions ? req.teacherInstructions.join(", ") : undefined,
       prompt: rawPrompt,
       ai_response: rawAiResponse,
       created_by: userId,
@@ -108,11 +135,15 @@ export class DatabaseLayer {
         question_type: q.type || "Single Correct",
         options: q.options, // jsonb array
         correct_answer: q.answer,
-        explanation: q.explanation,
+        explanation: q.explanation, // stored as jsonb
         difficulty: q.difficulty || req.difficulty,
         estimated_time_seconds: q.estimated_time || 120,
         marks: marksPerQuestion,
-        learning_outcome: q.blooms_level ? `${q.topic} (Bloom's: ${q.blooms_level})` : q.topic,
+        learning_outcome: `${q.topic} (Bloom's: ${q.blooms_level})`,
+        concept: q.concept,
+        blooms_level: q.blooms_level,
+        difficulty_score: q.difficulty_score,
+        source_type: q.source_type,
       };
     });
 

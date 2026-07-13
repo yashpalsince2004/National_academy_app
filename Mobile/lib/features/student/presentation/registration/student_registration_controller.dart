@@ -8,7 +8,7 @@ class StudentRegistrationController extends StateNotifier<StudentRegistrationSta
   final StudentRepository _studentRepository;
 
   StudentRegistrationController({required this._studentRepository})
-      : super(StudentRegistrationState.initial());
+      : super(const StudentRegistrationState.initial());
 
   Future<void> registerStudent({
     required String uid,

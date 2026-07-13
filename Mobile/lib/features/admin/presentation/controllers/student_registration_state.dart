@@ -5,7 +5,7 @@ part 'student_registration_state.freezed.dart';
 enum RegistrationStatus { initial, loading, success, error }
 
 @freezed
-class StudentRegistrationState with _$StudentRegistrationState {
+abstract class StudentRegistrationState with _$StudentRegistrationState {
   const factory StudentRegistrationState({
     @Default(0) int currentStep,
     @Default({}) Map<String, dynamic> personal,

@@ -4,6 +4,7 @@ import 'package:national_academy/features/batches/presentation/controllers/batch
 import 'package:national_academy/features/batches/presentation/widgets/batch_card.dart';
 import 'package:national_academy/features/batches/presentation/widgets/create_batch_dialog.dart';
 import 'package:national_academy/features/batches/presentation/widgets/rename_batch_dialog.dart';
+import 'package:national_academy/core/widgets/app_dropdown.dart';
 import 'package:national_academy/features/batches/data/models/batch_model.dart';
 
 class BatchDashboardScreen extends ConsumerStatefulWidget {
@@ -191,33 +192,19 @@ class _BatchDashboardScreenState extends ConsumerState<BatchDashboardScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE8E8ED),
-                              borderRadius: BorderRadius.circular(9999),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _selectedSort,
-                                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: Color(0xFF0066CC)),
-                                style: TextStyle(
-                                  color: const Color(0xFF0066CC),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                                items: const [
-                                  DropdownMenuItem(value: 'Newest', child: Text('Newest')),
-                                  DropdownMenuItem(value: 'Oldest', child: Text('Oldest')),
-                                  DropdownMenuItem(value: 'Highest Students', child: Text('Highest Students')),
-                                  DropdownMenuItem(value: 'Alphabetical', child: Text('A-Z')),
-                                ],
-                                onChanged: (val) {
-                                  if (val != null) setState(() => _selectedSort = val);
-                                },
-                              ),
-                            ),
+                          AppDropdown<String>(
+                            value: _selectedSort,
+                            isFullWidthButton: false,
+                            headerText: 'Sort by',
+                            items: [
+                              AppDropdownItem(value: 'Newest', label: 'Newest'),
+                              AppDropdownItem(value: 'Oldest', label: 'Oldest'),
+                              AppDropdownItem(value: 'Highest Students', label: 'Highest Students'),
+                              AppDropdownItem(value: 'Alphabetical', label: 'A-Z'),
+                            ],
+                            onChanged: (val) {
+                              setState(() => _selectedSort = val);
+                            },
                           ),
                         ],
                       ),

@@ -4,7 +4,7 @@ part 'student_profile.freezed.dart';
 part 'student_profile.g.dart';
 
 @freezed
-class StudentProfile with _$StudentProfile {
+abstract class StudentProfile with _$StudentProfile {
   const factory StudentProfile({
     required String uid,
     required String name,

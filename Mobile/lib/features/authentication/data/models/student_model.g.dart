@@ -6,23 +6,22 @@ part of 'student_model.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$PersonalInformationImpl _$$PersonalInformationImplFromJson(
-  Map<String, dynamic> json,
-) => _$PersonalInformationImpl(
-  fullName: json['fullName'] as String,
-  email: json['email'] as String,
-  phoneNumber: json['phoneNumber'] as String,
-  gender: json['gender'] as String,
-  dob: json['dob'] as String,
-  address: json['address'] as String,
-  city: json['city'] as String,
-  state: json['state'] as String,
-  pinCode: json['pinCode'] as String,
-  emergencyContact: json['emergencyContact'] as String,
-);
+_PersonalInformation _$PersonalInformationFromJson(Map<String, dynamic> json) =>
+    _PersonalInformation(
+      fullName: json['fullName'] as String,
+      email: json['email'] as String,
+      phoneNumber: json['phoneNumber'] as String,
+      gender: json['gender'] as String,
+      dob: json['dob'] as String,
+      address: json['address'] as String,
+      city: json['city'] as String,
+      state: json['state'] as String,
+      pinCode: json['pinCode'] as String,
+      emergencyContact: json['emergencyContact'] as String,
+    );
 
-Map<String, dynamic> _$$PersonalInformationImplToJson(
-  _$PersonalInformationImpl instance,
+Map<String, dynamic> _$PersonalInformationToJson(
+  _PersonalInformation instance,
 ) => <String, dynamic>{
   'fullName': instance.fullName,
   'email': instance.email,
@@ -36,21 +35,20 @@ Map<String, dynamic> _$$PersonalInformationImplToJson(
   'emergencyContact': instance.emergencyContact,
 };
 
-_$AcademicInformationImpl _$$AcademicInformationImplFromJson(
-  Map<String, dynamic> json,
-) => _$AcademicInformationImpl(
-  admissionNumber: json['admissionNumber'] as String,
-  enrollmentDate: json['enrollmentDate'] as String,
-  classLevel: json['class'] as String,
-  courseType: json['courseType'] as String,
-  targetExam: json['targetExam'] as String,
-  batchName: json['batchName'] as String,
-  rollNumber: json['rollNumber'] as String,
-  previousSchool: json['previousSchool'] as String,
-);
+_AcademicInformation _$AcademicInformationFromJson(Map<String, dynamic> json) =>
+    _AcademicInformation(
+      admissionNumber: json['admissionNumber'] as String,
+      enrollmentDate: json['enrollmentDate'] as String,
+      classLevel: json['class'] as String,
+      courseType: json['courseType'] as String,
+      targetExam: json['targetExam'] as String,
+      batchName: json['batchName'] as String,
+      rollNumber: json['rollNumber'] as String,
+      previousSchool: json['previousSchool'] as String,
+    );
 
-Map<String, dynamic> _$$AcademicInformationImplToJson(
-  _$AcademicInformationImpl instance,
+Map<String, dynamic> _$AcademicInformationToJson(
+  _AcademicInformation instance,
 ) => <String, dynamic>{
   'admissionNumber': instance.admissionNumber,
   'enrollmentDate': instance.enrollmentDate,
@@ -62,22 +60,20 @@ Map<String, dynamic> _$$AcademicInformationImplToJson(
   'previousSchool': instance.previousSchool,
 };
 
-_$ParentInformationImpl _$$ParentInformationImplFromJson(
-  Map<String, dynamic> json,
-) => _$ParentInformationImpl(
-  parentName: json['parentName'] as String,
-  parentPhone: json['parentPhone'] as String,
-);
+_ParentInformation _$ParentInformationFromJson(Map<String, dynamic> json) =>
+    _ParentInformation(
+      parentName: json['parentName'] as String,
+      parentPhone: json['parentPhone'] as String,
+    );
 
-Map<String, dynamic> _$$ParentInformationImplToJson(
-  _$ParentInformationImpl instance,
-) => <String, dynamic>{
-  'parentName': instance.parentName,
-  'parentPhone': instance.parentPhone,
-};
+Map<String, dynamic> _$ParentInformationToJson(_ParentInformation instance) =>
+    <String, dynamic>{
+      'parentName': instance.parentName,
+      'parentPhone': instance.parentPhone,
+    };
 
-_$StudentModelImpl _$$StudentModelImplFromJson(Map<String, dynamic> json) =>
-    _$StudentModelImpl(
+_StudentModel _$StudentModelFromJson(Map<String, dynamic> json) =>
+    _StudentModel(
       studentId: json['studentId'] as String,
       personalInformation: PersonalInformation.fromJson(
         json['personal_information'] as Map<String, dynamic>,
@@ -92,7 +88,7 @@ _$StudentModelImpl _$$StudentModelImplFromJson(Map<String, dynamic> json) =>
       status: json['status'] as String,
     );
 
-Map<String, dynamic> _$$StudentModelImplToJson(_$StudentModelImpl instance) =>
+Map<String, dynamic> _$StudentModelToJson(_StudentModel instance) =>
     <String, dynamic>{
       'studentId': instance.studentId,
       'personal_information': instance.personalInformation,

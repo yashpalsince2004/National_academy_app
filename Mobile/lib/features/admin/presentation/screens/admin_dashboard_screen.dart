@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../authentication/presentation/controllers/auth_controller.dart';
+import '../../../../core/widgets/floating_nav_bar.dart';
+import '../../../../core/widgets/grid_background.dart';
 import '../widgets/home_tab.dart';
 import '../widgets/attendance_tab.dart';
 import '../widgets/lectures_tab.dart';
@@ -35,26 +37,13 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_titles[_currentIndex]),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppColors.error),
-            tooltip: 'Logout',
-            onPressed: () {
-              ref.read(authControllerProvider.notifier).logout();
-              context.goNamed('role-selection');
-            },
-          ),
-        ],
-      ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _tabs,
+      body: GridBackground(
+        child: IndexedStack(
+          index: _currentIndex,
+          children: _tabs,
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         elevation: 0,
@@ -64,50 +53,35 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
         child: const Icon(Icons.add),
         onPressed: () => _showQuickActionsBottomSheet(context),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: isDark ? const Color(0xFF333335) : AppColors.hairline,
-              width: 1,
-            ),
+      bottomNavigationBar: FloatingNavBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        items: const [
+          FloatingNavBarItem(
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home_rounded,
+            label: 'Home',
           ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: theme.colorScheme.primary,
-          unselectedItemColor: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
-          backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
-          elevation: 0,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home_rounded),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.checklist_rtl_outlined),
-              activeIcon: Icon(Icons.checklist_rtl_rounded),
-              label: 'Attendance',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.class_outlined),
-              activeIcon: Icon(Icons.class_rounded),
-              label: 'Lectures',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.settings_outlined),
-              activeIcon: Icon(Icons.settings_rounded),
-              label: 'Management',
-            ),
-          ],
-        ),
+          FloatingNavBarItem(
+            icon: Icons.checklist_rtl_outlined,
+            activeIcon: Icons.checklist_rtl_rounded,
+            label: 'Attendance',
+          ),
+          FloatingNavBarItem(
+            icon: Icons.class_outlined,
+            activeIcon: Icons.class_rounded,
+            label: 'Lectures',
+          ),
+          FloatingNavBarItem(
+            icon: Icons.settings_outlined,
+            activeIcon: Icons.settings_rounded,
+            label: 'Management',
+          ),
+        ],
       ),
     );
   }

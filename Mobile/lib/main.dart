@@ -40,10 +40,7 @@ void main() async {
   // Initialize Supabase
   try {
     final supabaseUrl = dotenv.env['SUPABASE_URL'];
-    String? supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'];
-    if (supabaseAnonKey == null || supabaseAnonKey.isEmpty || supabaseAnonKey == 'your-supabase-anon-key') {
-      supabaseAnonKey = dotenv.env['SUPABASE_PUBLISHABLE_KEY'];
-    }
+    final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? dotenv.env['SUPABASE_PUBLISHABLE_KEY'];
 
     if (supabaseUrl != null && supabaseAnonKey != null && supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
       await Supabase.initialize(

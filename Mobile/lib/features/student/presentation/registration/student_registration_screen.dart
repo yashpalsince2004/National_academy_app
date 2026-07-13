@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:national_academy/core/constants/app_colors.dart';
 import 'package:national_academy/features/authentication/presentation/controllers/auth_controller.dart';
+import 'package:national_academy/features/authentication/presentation/controllers/auth_state.dart';
 import 'package:national_academy/features/student/presentation/registration/student_registration_controller.dart';
+import 'package:national_academy/features/student/presentation/registration/student_registration_state.dart';
 
 // ─── Circle Diagonal Painter for right side icon ─────────────────────────────
 class CircleDiagonalPainter extends CustomPainter {

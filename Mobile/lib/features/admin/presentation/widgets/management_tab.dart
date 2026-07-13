@@ -11,7 +11,9 @@ class ManagementTab extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final List<Map<String, dynamic>> modules = [
-      {'title': 'Students', 'icon': Icons.school_outlined, 'color': Colors.blue, 'route': '/admin/register-student'},
+      {'title': 'Students', 'icon': Icons.people_alt_outlined, 'color': Colors.blue, 'route': '/admin/students'},
+      {'title': '+ Add Student', 'icon': Icons.school_outlined, 'color': Colors.blue, 'route': '/admin/register-student'},
+      {'title': '+ Add Admin', 'icon': Icons.admin_panel_settings_outlined, 'color': Colors.redAccent, 'route': '/admin/register-admin'},
       {'title': 'Teachers', 'icon': Icons.assignment_ind_outlined, 'color': Colors.purple, 'route': '/admin/register-teacher'},
       {'title': 'Batches', 'icon': Icons.grid_view_rounded, 'color': Colors.orange, 'route': '/admin/batches'},
       {'title': 'Courses', 'icon': Icons.book_outlined, 'color': Colors.teal, 'route': '/admin/courses'},
@@ -70,7 +72,10 @@ class ManagementTab extends StatelessWidget {
 
     return InkWell(
       onTap: () {
-        if (mod['route'] == '/admin/register-student' || mod['route'] == '/admin/batches') {
+        if (mod['route'] == '/admin/register-student' ||
+            mod['route'] == '/admin/register-admin' ||
+            mod['route'] == '/admin/students' ||
+            mod['route'] == '/admin/batches') {
           context.push(mod['route'] as String);
         } else {
           // Fallback feedback for features in planning / subsequent phases

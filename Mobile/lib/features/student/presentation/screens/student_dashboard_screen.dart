@@ -1,8 +1,9 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/supabase_providers.dart';
+import '../../../../core/widgets/floating_nav_bar.dart';
+import '../../../../core/widgets/grid_background.dart';
 import '../dashboard/controllers/dashboard_controller.dart';
 import '../dashboard/tabs/home_tab.dart';
 import '../dashboard/tabs/student_dpp_tab.dart';
@@ -51,7 +52,8 @@ class _StudentDashboard extends ConsumerWidget {
             ],
           ),
         ),
-        child: Stack(
+        child: GridBackground(
+          child: Stack(
           children: [
             // Content Area with lazy loading index stack
             Positioned.fill(
@@ -67,170 +69,48 @@ class _StudentDashboard extends ConsumerWidget {
               ),
             ),
 
-            // Floating Frosted Glass Bottom Navigation Bar
+            // Floating Bottom Navigation Bar
             Positioned(
-              left: 20,
-              right: 20,
-              bottom: 24,
-              child: SafeArea(
-                bottom: true,
-                child: Container(
-                  height: 68,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        blurRadius: 32,
-                        spreadRadius: 1,
-                        offset: const Offset(0, 12),
-                      ),
-                    ],
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: FloatingNavBar(
+                currentIndex: activeTab.index,
+                onTap: (index) {
+                  ref.read(dashboardTabProvider.notifier).setTab(StudentDashboardTab.values[index]);
+                },
+                items: const [
+                  FloatingNavBarItem(
+                    icon: Icons.home_outlined,
+                    activeIcon: Icons.home_rounded,
+                    label: 'Home',
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(30),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.50),
-                          borderRadius: BorderRadius.circular(30),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.55),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final tabWidth = constraints.maxWidth / 4;
-
-                            return Stack(
-                              children: [
-                                // Sliding Liquid Glass Selection Bubble
-                                AnimatedPositioned(
-                                  duration: const Duration(milliseconds: 320),
-                                  curve: Curves.easeOutBack,
-                                  left: activeTab.index * tabWidth,
-                                  width: tabWidth,
-                                  top: 6,
-                                  bottom: 6,
-                                  child: Container(
-                                    margin: const EdgeInsets.symmetric(horizontal: 10),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(22),
-                                      border: Border.all(
-                                        color: AppColors.primary.withValues(alpha: 0.18),
-                                        width: 1.0,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                                // Tab Items
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: _buildNavItem(
-                                        ref: ref,
-                                        tab: StudentDashboardTab.home,
-                                        activeTab: activeTab,
-                                        icon: Icons.home_rounded,
-                                        activeIcon: Icons.home_rounded,
-                                        label: 'Home',
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: _buildNavItem(
-                                        ref: ref,
-                                        tab: StudentDashboardTab.tests,
-                                        activeTab: activeTab,
-                                        icon: Icons.assignment_outlined,
-                                        activeIcon: Icons.assignment_rounded,
-                                        label: 'Tests',
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: _buildNavItem(
-                                        ref: ref,
-                                        tab: StudentDashboardTab.dpp,
-                                        activeTab: activeTab,
-                                        icon: Icons.quiz_outlined,
-                                        activeIcon: Icons.quiz_rounded,
-                                        label: 'DPP',
-                                      ),
-                                    ),
-                                    Expanded(
-                                      child: _buildNavItem(
-                                        ref: ref,
-                                        tab: StudentDashboardTab.profile,
-                                        activeTab: activeTab,
-                                        icon: Icons.person_outline_rounded,
-                                        activeIcon: Icons.person_rounded,
-                                        label: 'Profile',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                    ),
+                  FloatingNavBarItem(
+                    icon: Icons.assignment_outlined,
+                    activeIcon: Icons.assignment_rounded,
+                    label: 'Tests',
                   ),
-                ),
+                  FloatingNavBarItem(
+                    icon: Icons.quiz_outlined,
+                    activeIcon: Icons.quiz_rounded,
+                    label: 'DPP',
+                  ),
+                  FloatingNavBarItem(
+                    icon: Icons.person_outline_rounded,
+                    activeIcon: Icons.person_rounded,
+                    label: 'Profile',
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildNavItem({
-    required WidgetRef ref,
-    required StudentDashboardTab tab,
-    required StudentDashboardTab activeTab,
-    required IconData icon,
-    required IconData activeIcon,
-    required String label,
-  }) {
-    final isSelected = tab == activeTab;
-    const activeColor = AppColors.primary;
-    const inactiveColor = AppColors.textSecondary;
-
-    return InkWell(
-      onTap: () => ref.read(dashboardTabProvider.notifier).setTab(tab),
-      splashColor: Colors.transparent,
-      highlightColor: Colors.transparent,
-      child: AnimatedScale(
-        scale: isSelected ? 1.05 : 1.0,
-        duration: const Duration(milliseconds: 200),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              color: isSelected ? activeColor : inactiveColor,
-              size: 24,
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? activeColor : inactiveColor,
-                letterSpacing: -0.1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    ),
+  );
 }
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Loading Gate

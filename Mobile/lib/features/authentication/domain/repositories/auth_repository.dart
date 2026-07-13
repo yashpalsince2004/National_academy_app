@@ -37,5 +37,13 @@ abstract class AuthRepository {
     required String newPassword,
   });
 
+  Future<void> registerAdmin({
+    required String email,
+    required String username,
+    required String password,
+    required String fullName,
+    String? phone,
+  });
+
   Stream<AppUser?> get authStateChanges;
 }

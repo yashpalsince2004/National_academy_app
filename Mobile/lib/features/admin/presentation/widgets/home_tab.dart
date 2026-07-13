@@ -1,583 +1,1551 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/widgets/tactile_button.dart';
+import '../../../batches/presentation/controllers/batch_controller.dart';
+import '../../../batches/presentation/controllers/batch_detail_controller.dart';
+import '../../../batches/data/models/batch_model.dart';
+import '../../../batches/data/models/timetable_lecture_model.dart';
 
-class HomeTab extends StatelessWidget {
+class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({super.key});
+
+  @override
+  ConsumerState<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends ConsumerState<HomeTab> {
+  String? _selectedBatchId;
+  Map<String, String>? _mockScheduledTest;
+
+  // Overrideable lecture data (editable by admin)
+  String _lectureSubject = 'Physics — Chapter 12';
+  String _lectureTeacher = 'Mr. R. Sharma';
+  String _lectureStartTime = '09:00 AM';
+  String _lectureEndTime = '10:30 AM';
+  String _lectureDayOfWeek = 'Monday';
+  String _lectureRoom = 'Room 101';
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final batchesAsync = ref.watch(batchControllerProvider);
 
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Greeting
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Good Morning, Yash 👋',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'National Academy • Monday, 13 July',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                        ),
-                  ),
-                ],
-              ),
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                child: Icon(Icons.school_rounded, color: theme.colorScheme.primary),
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: batchesAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
           ),
-          const SizedBox(height: 24),
-
-          // KPI Cards Grid
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.5,
-            children: [
-              _buildKpiCard(
-                context,
-                title: 'Total Students',
-                value: '487',
-                icon: Icons.people_outline_rounded,
-                color: Colors.blue,
-              ),
-              _buildKpiCard(
-                context,
-                title: 'Teachers',
-                value: '21',
-                icon: Icons.person_outline_rounded,
-                color: Colors.purple,
-              ),
-              _buildKpiCard(
-                context,
-                title: 'Active Batches',
-                value: '18',
-                icon: Icons.class_outlined,
-                color: Colors.orange,
-              ),
-              _buildKpiCard(
-                context,
-                title: "Today's Attendance",
-                value: '91%',
-                icon: Icons.checklist_rtl_rounded,
-                color: Colors.green,
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Action Alerts Banner / Pending Work
-          _buildAlertsSection(context),
-          const SizedBox(height: 20),
-
-          // Live Lecture Card
-          _buildLiveLectureCard(context),
-          const SizedBox(height: 20),
-
-          // Attendance Overview (Circular / Progress Chart)
-          _buildAttendanceOverview(context),
-          const SizedBox(height: 20),
-
-          // Subject Progress Tracker
-          _buildSubjectProgressSection(context),
-          const SizedBox(height: 20),
-
-          // Today's Timetable Schedule
-          _buildScheduleSection(context),
-          const SizedBox(height: 20),
-
-          // Recent Administrative Activity Log
-          _buildRecentActivitySection(context),
-          const SizedBox(height: 32),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildKpiCard(
-    BuildContext context, {
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(icon, color: color, size: 22),
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ],
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.5,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  title,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                        color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                        fontSize: 11,
-                      ),
-                ),
-              ],
-            ),
-          ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildAlertsSection(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: Colors.amber.withOpacity(0.3)),
-      ),
-      color: isDark ? Colors.amber.withOpacity(0.05) : Colors.amber.shade50.withOpacity(0.3),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.amber.shade800, size: 20),
-                const SizedBox(width: 8),
-                Text(
-                  'Pending Work / Alerts',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.amber.shade900,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildAlertItem(context, '4 Fees Overdue/Pending', Colors.red),
-            _buildAlertItem(context, 'Attendance Missing (Batch XII-B)', Colors.orange),
-            _buildAlertItem(context, '2 Exams Scheduled for Tomorrow', Colors.blue),
-          ],
+        error: (err, stack) => Center(
+          child: Text(
+            'Error loading batches: $err',
+            style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
+          ),
         ),
-      ),
-    );
-  }
+        data: (batches) {
+          if (batches.isEmpty) {
+            return _EmptyBatchesView(isDark: isDark);
+          }
 
-  Widget _buildAlertItem(BuildContext context, String text, Color color) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            text,
-            style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w500,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
+          if (_selectedBatchId == null ||
+              !batches.any((b) => b.id == _selectedBatchId)) {
+            _selectedBatchId = batches.first.id;
+          }
 
-  Widget _buildLiveLectureCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+          final activeBatch =
+              batches.firstWhere((b) => b.id == _selectedBatchId);
+          final batchDetails =
+              ref.watch(batchDetailControllerProvider(_selectedBatchId!));
 
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: Colors.red.withOpacity(0.2)),
-      ),
-      color: isDark ? Colors.red.withOpacity(0.05) : Colors.red.shade50.withOpacity(0.3),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          return SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const SizedBox(height: 20),
+                _GreetingSection(isDark: isDark),
+                const SizedBox(height: 20),
+                _BatchSelectorCard(
+                  activeBatch: activeBatch,
+                  isDark: isDark,
+                  onTap: () => _showBatchSelector(context, batches),
+                ),
+                const SizedBox(height: 20),
                 Row(
                   children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
+                    Expanded(
+                      child: _ActionCard(
+                        icon: Icons.calendar_month_rounded,
+                        label: 'Schedule\nLecture',
+                        description: "Create today's class",
+                        accentColor: AppColors.primary,
+                        isDark: isDark,
+                        onTap: () => _showScheduleLectureDialog(
+                            context, _selectedBatchId!, batchDetails),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'LIVE NOW',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                            color: Colors.red,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _ActionCard(
+                        icon: Icons.assignment_rounded,
+                        label: 'Schedule\nTest',
+                        description: 'Create new exam',
+                        accentColor: const Color(0xFF10B981),
+                        isDark: isDark,
+                        onTap: () =>
+                            _showScheduleTestDialog(context, activeBatch),
+                      ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 20),
+                _buildUpcomingLectureCard(context, batchDetails, isDark),
+                const SizedBox(height: 20),
+                _buildUpcomingTestCard(context, isDark),
+                const SizedBox(height: 120),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildUpcomingLectureCard(
+      BuildContext context, BatchDetailState details, bool isDark) {
+    if (details.isLoading) {
+      return _UpcomingLectureCard(
+        isDark: isDark,
+        isLoading: true,
+        subject: '',
+        teacher: '',
+        startTime: '',
+        endTime: '',
+        dayOfWeek: '',
+        room: '',
+      );
+    }
+
+    if (details.lectures.isNotEmpty) {
+      final TimetableLectureModel lecture = details.lectures.first;
+      return _UpcomingLectureCard(
+        isDark: isDark,
+        isLoading: false,
+        subject: lecture.subjectName,
+        teacher: lecture.teacherName,
+        startTime: lecture.startTime,
+        endTime: lecture.endTime,
+        dayOfWeek: lecture.dayOfWeek,
+        room: lecture.room,
+        onEdit: () => _showEditLectureDialog(
+          context,
+          subject: lecture.subjectName,
+          teacher: lecture.teacherName,
+          startTime: lecture.startTime,
+          endTime: lecture.endTime,
+          dayOfWeek: lecture.dayOfWeek,
+          room: lecture.room,
+        ),
+      );
+    }
+
+    return _UpcomingLectureCard(
+      isDark: isDark,
+      isLoading: false,
+      subject: _lectureSubject,
+      teacher: _lectureTeacher,
+      startTime: _lectureStartTime,
+      endTime: _lectureEndTime,
+      dayOfWeek: _lectureDayOfWeek,
+      room: _lectureRoom,
+      isPlaceholder: true,
+      onEdit: () => _showEditLectureDialog(
+        context,
+        subject: _lectureSubject,
+        teacher: _lectureTeacher,
+        startTime: _lectureStartTime,
+        endTime: _lectureEndTime,
+        dayOfWeek: _lectureDayOfWeek,
+        room: _lectureRoom,
+      ),
+    );
+  }
+
+  Widget _buildUpcomingTestCard(BuildContext context, bool isDark) {
+    if (_mockScheduledTest != null) {
+      return _UpcomingTestCard(
+        isDark: isDark,
+        subject: _mockScheduledTest!['subject'] ?? '',
+        topic: _mockScheduledTest!['topic'] ?? '',
+        date: _mockScheduledTest!['date'] ?? '',
+        time: _mockScheduledTest!['time'] ?? '',
+        marks: _mockScheduledTest!['marks'] ?? '',
+        isPlaceholder: false,
+        onEdit: () => _showEditTestDialog(
+          context,
+          subject: _mockScheduledTest!['subject'] ?? '',
+          topic: _mockScheduledTest!['topic'] ?? '',
+          date: _mockScheduledTest!['date'] ?? '',
+          time: _mockScheduledTest!['time'] ?? '',
+          marks: _mockScheduledTest!['marks'] ?? '',
+        ),
+      );
+    }
+
+    return _UpcomingTestCard(
+      isDark: isDark,
+      subject: 'Chemistry',
+      topic: 'Organic Reactions & Mechanisms',
+      date: 'Tomorrow',
+      time: '02:00 PM',
+      marks: '100 Marks',
+      isPlaceholder: true,
+      onEdit: () => _showEditTestDialog(
+        context,
+        subject: 'Chemistry',
+        topic: 'Organic Reactions & Mechanisms',
+        date: 'Tomorrow',
+        time: '02:00 PM',
+        marks: '100 Marks',
+      ),
+    );
+  }
+
+  void _showBatchSelector(BuildContext context, List<BatchModel> batches) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  width: 36,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: isDark ? Colors.white24 : Colors.black12,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  child: Text(
-                    'Physics - XII-A',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.red,
-                          fontWeight: FontWeight.bold,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Select Active Batch',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : AppColors.ink,
+                    letterSpacing: -0.374,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Divider(
+                    color:
+                        isDark ? Colors.white12 : const Color(0xFFE0E0E0)),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: batches.length,
+                    itemBuilder: (ctx, index) {
+                      final batch = batches[index];
+                      final isSelected = batch.id == _selectedBatchId;
+                      return ListTile(
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? AppColors.primary.withValues(alpha: 0.12)
+                                : (isDark
+                                    ? Colors.white10
+                                    : const Color(0xFFF5F5F7)),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.school_rounded,
+                            size: 18,
+                            color: isSelected
+                                ? AppColors.primary
+                                : (isDark
+                                    ? Colors.white54
+                                    : AppColors.textSecondary),
+                          ),
                         ),
+                        title: Text(
+                          batch.name,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: isSelected
+                                ? AppColors.primary
+                                : (isDark ? Colors.white : AppColors.ink),
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${batch.classLevel} • ${batch.examType}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark
+                                ? Colors.white38
+                                : AppColors.textSecondary,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? const Icon(Icons.check_circle_rounded,
+                                color: AppColors.primary, size: 20)
+                            : null,
+                        onTap: () {
+                          setState(() => _selectedBatchId = batch.id);
+                          Navigator.pop(sheetCtx);
+                        },
+                      );
+                    },
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Electromagnetism & Waves',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showScheduleLectureDialog(
+      BuildContext context, String batchId, BatchDetailState details) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final subjectController = TextEditingController();
+    final teacherController = TextEditingController();
+    final roomController = TextEditingController(text: 'Room 101');
+    final dayController = TextEditingController(text: 'Monday');
+    final startTimeController = TextEditingController(text: '09:00 AM');
+    final endTimeController = TextEditingController(text: '10:30 AM');
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18)),
+          title: Text(
+            'Schedule Lecture',
+            style: TextStyle(
+                color: isDark ? Colors.white : AppColors.ink,
+                fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: subjectController,
+                  decoration: const InputDecoration(
+                      labelText: 'Subject Name (e.g. Physics)'),
+                  style: TextStyle(
+                      color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: teacherController,
+                  decoration:
+                      const InputDecoration(labelText: 'Teacher Name'),
+                  style: TextStyle(
+                      color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: roomController,
+                  decoration:
+                      const InputDecoration(labelText: 'Room Number'),
+                  style: TextStyle(
+                      color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: dayController,
+                  decoration:
+                      const InputDecoration(labelText: 'Day of Week'),
+                  style: TextStyle(
+                      color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: startTimeController,
+                        decoration: const InputDecoration(
+                            labelText: 'Start Time'),
+                        style: TextStyle(
+                            color: isDark ? Colors.white : AppColors.ink),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: endTimeController,
+                        decoration:
+                            const InputDecoration(labelText: 'End Time'),
+                        style: TextStyle(
+                            color: isDark ? Colors.white : AppColors.ink),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 6),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            TactileButton(
+              onTap: () async {
+                if (subjectController.text.trim().isEmpty ||
+                    teacherController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text(
+                          'Please fill out Subject and Teacher fields')));
+                  return;
+                }
+                try {
+                  await ref
+                      .read(
+                          batchDetailControllerProvider(batchId).notifier)
+                      .addLecture(
+                        subjectName: subjectController.text.trim(),
+                        teacherName: teacherController.text.trim(),
+                        room: roomController.text.trim(),
+                        dayOfWeek: dayController.text.trim(),
+                        startTime: startTimeController.text.trim(),
+                        endTime: endTimeController.text.trim(),
+                      );
+                  if (!context.mounted) return;
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Lecture scheduled successfully!')));
+                } catch (e) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content:
+                              Text('Error scheduling lecture: $e')));
+                }
+              },
+              child: ElevatedButton(
+                onPressed: () {},
+                child: const Text('Schedule'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showScheduleTestDialog(BuildContext context, BatchModel batch) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final subjectController = TextEditingController();
+    final topicController = TextEditingController();
+    final dateController = TextEditingController(text: 'July 15, 2026');
+    final timeController = TextEditingController(text: '02:00 PM');
+    final marksController = TextEditingController(text: '100 Marks');
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18)),
+          title: Text(
+            'Schedule Test',
+            style: TextStyle(
+                color: isDark ? Colors.white : AppColors.ink,
+                fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: subjectController,
+                  decoration:
+                      const InputDecoration(labelText: 'Subject Name'),
+                  style: TextStyle(
+                      color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: topicController,
+                  decoration: const InputDecoration(
+                      labelText: 'Topic / Syllabus'),
+                  style: TextStyle(
+                      color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: dateController,
+                  decoration: const InputDecoration(labelText: 'Date'),
+                  style: TextStyle(
+                      color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: timeController,
+                        decoration:
+                            const InputDecoration(labelText: 'Time'),
+                        style: TextStyle(
+                            color: isDark ? Colors.white : AppColors.ink),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: marksController,
+                        decoration: const InputDecoration(
+                            labelText: 'Max Marks'),
+                        style: TextStyle(
+                            color: isDark ? Colors.white : AppColors.ink),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel',
+                  style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            TactileButton(
+              onTap: () {
+                if (subjectController.text.trim().isEmpty ||
+                    topicController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text(
+                          'Please fill out Subject and Topic fields')));
+                  return;
+                }
+                setState(() {
+                  _mockScheduledTest = {
+                    'subject': subjectController.text.trim(),
+                    'topic': topicController.text.trim(),
+                    'date': dateController.text.trim(),
+                    'time': timeController.text.trim(),
+                    'marks': marksController.text.trim(),
+                  };
+                });
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Test scheduled successfully!')));
+              },
+              child: ElevatedButton(
+                onPressed: () {},
+                child: const Text('Schedule'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditLectureDialog(
+    BuildContext context, {
+    required String subject,
+    required String teacher,
+    required String startTime,
+    required String endTime,
+    required String dayOfWeek,
+    required String room,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final subjectController = TextEditingController(text: subject);
+    final teacherController = TextEditingController(text: teacher);
+    final roomController = TextEditingController(text: room);
+    final dayController = TextEditingController(text: dayOfWeek);
+    final startTimeController = TextEditingController(text: startTime);
+    final endTimeController = TextEditingController(text: endTime);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: Text(
+            'Edit Lecture Details',
+            style: TextStyle(
+                color: isDark ? Colors.white : AppColors.ink,
+                fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: subjectController,
+                  decoration: const InputDecoration(labelText: 'Subject Name'),
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: teacherController,
+                  decoration: const InputDecoration(labelText: 'Teacher Name'),
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: roomController,
+                  decoration: const InputDecoration(labelText: 'Room Number'),
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: dayController,
+                  decoration: const InputDecoration(labelText: 'Day of Week'),
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: startTimeController,
+                        decoration: const InputDecoration(labelText: 'Start Time'),
+                        style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: endTimeController,
+                        decoration: const InputDecoration(labelText: 'End Time'),
+                        style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            TactileButton(
+              onTap: () {
+                if (subjectController.text.trim().isEmpty ||
+                    teacherController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Please fill out Subject and Teacher fields')));
+                  return;
+                }
+                setState(() {
+                  _lectureSubject = subjectController.text.trim();
+                  _lectureTeacher = teacherController.text.trim();
+                  _lectureRoom = roomController.text.trim();
+                  _lectureDayOfWeek = dayController.text.trim();
+                  _lectureStartTime = startTimeController.text.trim();
+                  _lectureEndTime = endTimeController.text.trim();
+                });
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Upcoming lecture updated successfully!')));
+              },
+              child: ElevatedButton(
+                onPressed: () {},
+                child: const Text('Save'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditTestDialog(
+    BuildContext context, {
+    required String subject,
+    required String topic,
+    required String date,
+    required String time,
+    required String marks,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final subjectController = TextEditingController(text: subject);
+    final topicController = TextEditingController(text: topic);
+    final dateController = TextEditingController(text: date);
+    final timeController = TextEditingController(text: time);
+    final marksController = TextEditingController(text: marks);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: Text(
+            'Edit Test Details',
+            style: TextStyle(
+                color: isDark ? Colors.white : AppColors.ink,
+                fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: subjectController,
+                  decoration: const InputDecoration(labelText: 'Subject Name'),
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: topicController,
+                  decoration: const InputDecoration(labelText: 'Topic / Syllabus'),
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: dateController,
+                  decoration: const InputDecoration(labelText: 'Date'),
+                  style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: timeController,
+                        decoration: const InputDecoration(labelText: 'Time'),
+                        style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: marksController,
+                        decoration: const InputDecoration(labelText: 'Max Marks'),
+                        style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            ),
+            TactileButton(
+              onTap: () {
+                if (subjectController.text.trim().isEmpty ||
+                    topicController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Please fill out Subject and Topic fields')));
+                  return;
+                }
+                setState(() {
+                  _mockScheduledTest = {
+                    'subject': subjectController.text.trim(),
+                    'topic': topicController.text.trim(),
+                    'date': dateController.text.trim(),
+                    'time': timeController.text.trim(),
+                    'marks': marksController.text.trim(),
+                  };
+                });
+                Navigator.pop(dialogContext);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Upcoming test updated successfully!')));
+              },
+              child: ElevatedButton(
+                onPressed: () {},
+                child: const Text('Save'),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PRIVATE WIDGETS
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _EmptyBatchesView extends StatelessWidget {
+  const _EmptyBatchesView({required this.isDark});
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Icon(Icons.school_rounded,
+                  size: 36, color: AppColors.primary),
+            ),
+            const SizedBox(height: 16),
             Text(
-              'Teacher: Mr. Sharma  •  9:00 AM - 10:30 AM',
-              style: theme.textTheme.bodySmall?.copyWith(
-                    color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
+              'No Batches Available',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : AppColors.ink,
+                letterSpacing: -0.374,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Create your first batch to get started',
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? Colors.white54 : AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            TactileButton(
+              onTap: () => context.push('/admin/batches'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(9999),
+                ),
+                child: const Text(
+                  'Go to Batch Management',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                   ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GreetingSection extends StatelessWidget {
+  const _GreetingSection({required this.isDark});
+  final bool isDark;
+
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    '${_greeting()}, ',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w400,
+                      color:
+                          isDark ? Colors.white60 : AppColors.textSecondary,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  const Text('👋', style: TextStyle(fontSize: 22)),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Yash Sir',
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : AppColors.ink,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.notifications_none_rounded,
+              color: AppColors.primary, size: 22),
+        ),
+      ],
+    );
+  }
+}
+
+class _BatchSelectorCard extends StatelessWidget {
+  const _BatchSelectorCard({
+    required this.activeBatch,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  final BatchModel activeBatch;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return TactileButton(
+      onTap: onTap,
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceTile1 : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark ? Colors.white10 : const Color(0xFFE0E0E0),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.school_rounded,
+                  color: AppColors.primary, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    activeBatch.name,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : AppColors.ink,
+                      letterSpacing: -0.374,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${activeBatch.classLevel} • ${activeBatch.examType}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? Colors.white38
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.expand_more_rounded,
+              color: isDark ? Colors.white38 : AppColors.textSecondary,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionCard extends StatelessWidget {
+  const _ActionCard({
+    required this.icon,
+    required this.label,
+    required this.description,
+    required this.accentColor,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String description;
+  final Color accentColor;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return TactileButton(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.surfaceTile1 : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark ? Colors.white10 : const Color(0xFFE0E0E0),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: accentColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: accentColor, size: 22),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : AppColors.ink,
+                letterSpacing: -0.2,
+                height: 1.25,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 12,
+                color:
+                    isDark ? Colors.white38 : AppColors.textSecondary,
+              ),
             ),
             const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                      shape: RoundedRectangleBorder(
+                  child: Container(
+                    height: 1,
+                    color: isDark
+                        ? Colors.white10
+                        : const Color(0xFFF0F0F0),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.arrow_forward_rounded,
+                    size: 14, color: accentColor),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UpcomingLectureCard extends StatelessWidget {
+  const _UpcomingLectureCard({
+    required this.isDark,
+    required this.isLoading,
+    required this.subject,
+    required this.teacher,
+    required this.startTime,
+    required this.endTime,
+    required this.dayOfWeek,
+    required this.room,
+    this.isPlaceholder = false,
+    this.onEdit,
+  });
+
+  final bool isDark;
+  final bool isLoading;
+  final String subject;
+  final String teacher;
+  final String startTime;
+  final String endTime;
+  final String dayOfWeek;
+  final String room;
+  final bool isPlaceholder;
+  final VoidCallback? onEdit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceTile1 : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE0E0E0),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: isLoading
+          ? const SizedBox(
+              height: 80,
+              child: Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(AppColors.primary),
+                ),
+              ),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(10),
                       ),
+                      child: const Icon(Icons.calendar_today_rounded,
+                          color: AppColors.primary, size: 18),
                     ),
-                    icon: const Icon(Icons.videocam_rounded, size: 18),
-                    label: const Text('Join Stream'),
-                    onPressed: () {},
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Upcoming Lecture',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: isDark
+                                  ? Colors.white38
+                                  : AppColors.textSecondary,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 1),
+                          Text(
+                            subject,
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : AppColors.ink,
+                              letterSpacing: -0.374,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isPlaceholder)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF6FF),
+                          borderRadius: BorderRadius.circular(9999),
+                          border: Border.all(
+                              color: AppColors.primary
+                                  .withValues(alpha: 0.3)),
+                        ),
+                        child: const Text(
+                          'Upcoming',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    if (onEdit != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        color: isDark ? Colors.white54 : AppColors.textSecondary,
+                        visualDensity: VisualDensity.compact,
+                        onPressed: onEdit,
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Divider(
+                    color: isDark ? Colors.white10 : const Color(0xFFF0F0F0),
+                    height: 1),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InfoChip(
+                          icon: Icons.person_outline_rounded,
+                          label: 'Teacher',
+                          value: teacher,
+                          isDark: isDark),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _InfoChip(
+                          icon: Icons.meeting_room_outlined,
+                          label: 'Room',
+                          value: room,
+                          isDark: isDark),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _InfoChip(
+                          icon: Icons.access_time_rounded,
+                          label: 'Time',
+                          value: '$startTime – $endTime',
+                          isDark: isDark),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _InfoChip(
+                          icon: Icons.today_rounded,
+                          label: 'Day',
+                          value: dayOfWeek,
+                          isDark: isDark),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _UpcomingTestCard extends StatelessWidget {
+  const _UpcomingTestCard({
+    required this.isDark,
+    required this.subject,
+    required this.topic,
+    required this.date,
+    required this.time,
+    required this.marks,
+    this.isPlaceholder = false,
+    this.onEdit,
+  });
+
+  final bool isDark;
+  final String subject;
+  final String topic;
+  final String date;
+  final String time;
+  final String marks;
+  final bool isPlaceholder;
+  final VoidCallback? onEdit;
+
+  static const Color _accent = Color(0xFF10B981);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceTile1 : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark ? Colors.white10 : const Color(0xFFE0E0E0),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.assignment_rounded,
+                    color: _accent, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Upcoming Test',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.white38 : AppColors.textSecondary,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      subject,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: isDark ? Colors.white : AppColors.ink,
+                        letterSpacing: -0.374,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              if (isPlaceholder)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _accent.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(9999),
+                  ),
+                  child: const Text(
+                    'Scheduled',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: _accent),
+                  ),
+                ),
+              if (onEdit != null) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  color: isDark ? Colors.white54 : AppColors.textSecondary,
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onEdit,
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.04)
+                  : const Color(0xFFF5F5F7),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.menu_book_rounded,
+                    size: 14,
+                    color: isDark ? Colors.white38 : AppColors.textSecondary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    topic,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? Colors.white70 : AppColors.ink,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
-            )
-          ],
-        ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Divider(
+              color: isDark ? Colors.white10 : const Color(0xFFF0F0F0),
+              height: 1),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _InfoChip(
+                    icon: Icons.today_rounded,
+                    label: 'Date',
+                    value: date,
+                    isDark: isDark),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _InfoChip(
+                    icon: Icons.access_time_rounded,
+                    label: 'Time',
+                    value: time,
+                    isDark: isDark),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _InfoChip(
+                    icon: Icons.emoji_events_outlined,
+                    label: 'Marks',
+                    value: marks,
+                    isDark: isDark),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _InfoChip(
+                    icon: Icons.bar_chart_rounded,
+                    label: 'Difficulty',
+                    value: 'Medium',
+                    isDark: isDark),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildAttendanceOverview(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.isDark,
+  });
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Overall Attendance',
-                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Academy attendance rate is stable compared to last week.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                          color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Center(
-                child: SizedBox(
-                  width: 80,
-                  height: 80,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        value: 0.91,
-                        strokeWidth: 8,
-                        backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
-                        color: Colors.green,
-                        strokeCap: StrokeCap.round,
-                      ),
-                      Text(
-                        '91%',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ],
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.04)
+            : const Color(0xFFF5F5F7),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(icon,
+              size: 14,
+              color: isDark ? Colors.white38 : AppColors.textSecondary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: isDark ? Colors.white38 : AppColors.textSecondary,
+                    letterSpacing: 0.2,
                   ),
                 ),
-              ),
-            )
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubjectProgressSection(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Subject Portion Progress',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _buildProgressRow(context, 'Physics', 0.80, Colors.blue),
-            const SizedBox(height: 12),
-            _buildProgressRow(context, 'Chemistry', 0.62, Colors.purple),
-            const SizedBox(height: 12),
-            _buildProgressRow(context, 'Maths', 0.90, Colors.teal),
-            const SizedBox(height: 12),
-            _buildProgressRow(context, 'Biology', 0.45, Colors.pink),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProgressRow(BuildContext context, String subject, double value, Color color) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(subject, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-            Text('${(value * 100).toInt()}%', style: theme.textTheme.bodySmall?.copyWith(color: color, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: value,
-            minHeight: 6,
-            backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildScheduleSection(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Today's Schedule",
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _buildScheduleItem(context, '09:00 AM', 'Physics - Class XII-A', 'Room 101'),
-            const Divider(height: 20),
-            _buildScheduleItem(context, '11:00 AM', 'Chemistry - Class XII-B', 'Room 102'),
-            const Divider(height: 20),
-            _buildScheduleItem(context, '02:00 PM', 'Maths - Crash Course', 'Lab A'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildScheduleItem(BuildContext context, String time, String title, String room) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Row(
-      children: [
-        Container(
-          width: 70,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Center(
-            child: Text(
-              time.split(' ')[0],
-              style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(height: 1),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : AppColors.ink,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                room,
-                style: theme.textTheme.bodySmall?.copyWith(
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                    ),
-              ),
-            ],
-          ),
-        ),
-        Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey.shade400),
-      ],
-    );
-  }
-
-  Widget _buildRecentActivitySection(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Recent Activity',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            _buildActivityItem(context, 'Attendance marked', 'Class XI-A Physics by Mr. Verma', '10 mins ago'),
-            const Divider(height: 20),
-            _buildActivityItem(context, 'Notice uploaded', 'Holiday announcement notice board', '1 hr ago'),
-            const Divider(height: 20),
-            _buildActivityItem(context, 'Fees collected', 'Roll NA-2026-0045, UPI payment', '2 hrs ago'),
-            const Divider(height: 20),
-            _buildActivityItem(context, 'Student admitted', 'Registered Rohan Kumar in Batch A', '3 hrs ago'),
-          ],
-        ),
+        ],
       ),
-    );
-  }
-
-  Widget _buildActivityItem(BuildContext context, String action, String description, String time) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Row(
-      children: [
-        CircleAvatar(
-          radius: 16,
-          backgroundColor: theme.colorScheme.primary.withOpacity(0.08),
-          child: Icon(Icons.history_rounded, size: 16, color: theme.colorScheme.primary),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                action,
-                style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                description,
-                style: theme.textTheme.bodySmall?.copyWith(
-                      color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
-                    ),
-              ),
-            ],
-          ),
-        ),
-        Text(
-          time,
-          style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.grey.shade400,
-                fontSize: 10,
-              ),
-        ),
-      ],
     );
   }
 }

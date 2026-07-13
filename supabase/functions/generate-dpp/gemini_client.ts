@@ -51,11 +51,34 @@ export class GeminiClient {
                 items: { type: "STRING" }
               },
               answer: { type: "STRING" },
-              explanation: { type: "STRING" },
+              explanation: {
+                type: "OBJECT",
+                properties: {
+                  correct_answer: { type: "STRING" },
+                  step_by_step: { type: "STRING" },
+                  why_others_incorrect: {
+                    type: "OBJECT",
+                    properties: {
+                      A: { type: "STRING" },
+                      B: { type: "STRING" },
+                      C: { type: "STRING" },
+                      D: { type: "STRING" }
+                    },
+                    required: ["A", "B", "C", "D"]
+                  },
+                  shortcut: { type: "STRING" },
+                  common_mistake: { type: "STRING" },
+                  ncert_reference: { type: "STRING" }
+                },
+                required: ["correct_answer", "step_by_step", "why_others_incorrect", "ncert_reference"]
+              },
+              concept: { type: "STRING" },
               topic: { type: "STRING" },
               difficulty: { type: "STRING" },
               estimated_time: { type: "INTEGER" },
-              blooms_level: { type: "STRING" }
+              blooms_level: { type: "STRING" },
+              difficulty_score: { type: "INTEGER" },
+              source_type: { type: "STRING" }
             },
             required: [
               "id",
@@ -64,10 +87,13 @@ export class GeminiClient {
               "options",
               "answer",
               "explanation",
+              "concept",
               "topic",
               "difficulty",
               "estimated_time",
-              "blooms_level"
+              "blooms_level",
+              "difficulty_score",
+              "source_type"
             ]
           }
         }

@@ -3,6 +3,61 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:national_academy/core/constants/app_colors.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Mock data – replace with real providers when available
+// ─────────────────────────────────────────────────────────────────────────────
+const _studentName = 'Yash';
+const _batchName = 'Alpha JEE Pro';
+const _batchClass = '12th • JEE';
+
+// Simulate a live/upcoming lecture; set to null to show placeholder state
+const Map<String, String>? _liveLecture = {
+  'subject': 'Physics',
+  'topic': 'Mechanics – Newton\'s Laws',
+  'teacher': 'Prof. H.C. Verma',
+  'classroom': 'Classroom A-102',
+  'startTime': '08:00 AM',
+  'endTime': '09:30 AM',
+};
+
+const Map<String, String>? _upcomingLecture = {
+  'subject': 'Chemistry',
+  'topic': 'Organic Reactions & Mechanisms',
+  'teacher': 'Prof. Sudha Murthy',
+  'classroom': 'Room B-201',
+  'startTime': '10:00 AM',
+  'endTime': '11:30 AM',
+  'countdownLabel': 'in 35 min',
+};
+
+const Map<String, String>? _upcomingTest = {
+  'subject': 'Physics',
+  'topic': 'Electrostatics – Unit Test',
+  'date': 'Tomorrow',
+  'time': '10:00 AM',
+  'duration': '3 hrs',
+  'marks': '100',
+};
+
+const List<Map<String, String>> _notices = [
+  {
+    'title': 'Sunday Extra Class – Physics',
+    'subtitle': 'July 14 • 09:00 AM • Room A-101',
+    'type': 'class',
+  },
+  {
+    'title': 'Homework: DPP #14 Submission',
+    'subtitle': 'Due: July 15 • Chemistry',
+    'type': 'homework',
+  },
+  {
+    'title': 'JEE Mock Test Schedule Updated',
+    'subtitle': 'July 10 • Exam Cell Notice',
+    'type': 'notice',
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
 class HomeTab extends ConsumerWidget {
   const HomeTab({super.key});
 
@@ -10,72 +65,56 @@ class HomeTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
-    final cardColor = isDark ? AppColors.surfaceTile1 : AppColors.canvas;
-    final textColor = isDark ? AppColors.textPrimaryDark : AppColors.ink;
-    final mutedTextColor = isDark ? AppColors.textSecondaryDark : AppColors.textSecondary;
-
     final paddingTop = MediaQuery.of(context).padding.top;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // ── Scrollable Content Area ───────────────────────────────────────
+          // ── Scrollable Content ─────────────────────────────────────────────
           Positioned.fill(
             child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
               padding: EdgeInsets.only(
                 left: 20.0,
                 right: 20.0,
-                top: paddingTop + 84.0, // Space to clear the pinned greeting header
-                bottom: 110.0, // Space for floating bottom nav
+                top: paddingTop + 90.0,
+                bottom: 120.0,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── Live Lecture Card (Highest Priority) ──────────────────────────
-                  _buildLiveLectureCard(cardColor, textColor, mutedTextColor),
+                  // 1. ALERT – Live / Active lecture (highest priority)
+                  _AlertCard(isDark: isDark),
                   const SizedBox(height: 16),
 
-                  // ── Next Lecture Card ───────────────────────────────────────────
-                  _buildNextLectureCard(cardColor, textColor, mutedTextColor),
+                  // 2. UPCOMING TEST
+                  _UpcomingTestCard(isDark: isDark),
                   const SizedBox(height: 16),
 
-                  // ── Upcoming Test Card ──────────────────────────────────────────
-                  _buildUpcomingTestCard(cardColor, textColor, mutedTextColor),
+                  // 3. UPCOMING LECTURE
+                  _UpcomingLectureCard(isDark: isDark),
                   const SizedBox(height: 16),
 
-                  // ── Portion Completion Card ─────────────────────────────────────
-                  _buildPortionCompletionCard(cardColor, textColor, mutedTextColor),
-                  const SizedBox(height: 16),
-
-                  // ── Recent Test Results Card ────────────────────────────────────
-                  _buildRecentTestResultsCard(cardColor, textColor, mutedTextColor),
-                  const SizedBox(height: 16),
-
-                  // ── Attendance Streak Card ──────────────────────────────────────
-                  _buildAttendanceStreakCard(cardColor, textColor, mutedTextColor),
-                  const SizedBox(height: 16),
-
-                  // ── Announcements Card ──────────────────────────────────────────
-                  _buildAnnouncementsCard(cardColor, textColor, mutedTextColor),
+                  // 4. HOMEWORK / NOTICES
+                  _NoticesCard(isDark: isDark),
                 ],
               ),
             ),
           ),
 
-          // ── Pinned Gradient Blur Header (iOS 26 Style) ────────────────────
+          // ── Pinned Blur Header ─────────────────────────────────────────────
           Positioned(
             top: 0,
             left: 0,
             right: 0,
             child: ClipRect(
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                 child: Container(
                   padding: EdgeInsets.only(
-                    top: paddingTop + 12,
-                    bottom: 20,
+                    top: paddingTop + 14,
+                    bottom: 18,
                     left: 20,
                     right: 20,
                   ),
@@ -84,14 +123,14 @@ class HomeTab extends ConsumerWidget {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        theme.scaffoldBackgroundColor.withValues(alpha: 0.95),
-                        theme.scaffoldBackgroundColor.withValues(alpha: 0.75),
+                        theme.scaffoldBackgroundColor.withValues(alpha: 0.96),
+                        theme.scaffoldBackgroundColor.withValues(alpha: 0.72),
                         theme.scaffoldBackgroundColor.withValues(alpha: 0.0),
                       ],
-                      stops: const [0.0, 0.5, 1.0],
+                      stops: const [0.0, 0.55, 1.0],
                     ),
                   ),
-                  child: _buildGreetingHeader(textColor, mutedTextColor),
+                  child: _GreetingHeader(isDark: isDark),
                 ),
               ),
             ),
@@ -100,48 +139,77 @@ class HomeTab extends ConsumerWidget {
       ),
     );
   }
+}
 
-  // 1. Greeting Header
-  Widget _buildGreetingHeader(Color textColor, Color mutedTextColor) {
+// ─────────────────────────────────────────────────────────────────────────────
+// GREETING HEADER
+// ─────────────────────────────────────────────────────────────────────────────
+class _GreetingHeader extends StatelessWidget {
+  const _GreetingHeader({required this.isDark});
+  final bool isDark;
+
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'Good Morning';
+    if (h < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = isDark ? AppColors.textPrimaryDark : AppColors.ink;
+    final mutedColor =
+        isDark ? AppColors.textSecondaryDark : AppColors.textSecondary;
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '👋 Good Morning, Yash',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
-                color: textColor,
-                letterSpacing: -0.5,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${_greeting()}, $_studentName 👋',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: textColor,
+                  letterSpacing: -0.4,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Batch: Alpha JEE Pro • July 11, 2026',
-              style: TextStyle(
-                fontSize: 14,
-                color: mutedTextColor,
-                letterSpacing: -0.1,
+              const SizedBox(height: 3),
+              Text(
+                '$_batchName • $_batchClass',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: mutedColor,
+                  letterSpacing: -0.1,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-        // Notification bell button
+        // Notification bell
         Stack(
+          clipBehavior: Clip.none,
           children: [
-            IconButton(
-              icon: Icon(Icons.notifications_none_rounded, color: textColor, size: 26),
-              onPressed: () {},
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : AppColors.canvasParchment,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.notifications_none_rounded,
+                  color: textColor, size: 22),
             ),
             Positioned(
-              right: 8,
-              top: 8,
+              right: 6,
+              top: 6,
               child: Container(
-                width: 9,
-                height: 9,
+                width: 8,
+                height: 8,
                 decoration: const BoxDecoration(
                   color: AppColors.error,
                   shape: BoxShape.circle,
@@ -153,136 +221,202 @@ class HomeTab extends ConsumerWidget {
       ],
     );
   }
+}
 
-  // 2. Current Live Lecture Card
-  Widget _buildLiveLectureCard(Color cardColor, Color textColor, Color mutedTextColor) {
+// ─────────────────────────────────────────────────────────────────────────────
+// ALERT CARD – Live lecture / test ongoing
+// ─────────────────────────────────────────────────────────────────────────────
+class _AlertCard extends StatelessWidget {
+  const _AlertCard({required this.isDark});
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    // Show the live lecture alert if present
+    if (_liveLecture != null) {
+      return _LiveLectureAlert(data: _liveLecture!, isDark: isDark);
+    }
+
+    // Fallback: quiet empty state placeholder
+    return _EmptyAlertCard(isDark: isDark);
+  }
+}
+
+class _LiveLectureAlert extends StatelessWidget {
+  const _LiveLectureAlert({required this.data, required this.isDark});
+  final Map<String, String> data;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
+        color: isDark ? const Color(0xFF2C1A1A) : const Color(0xFFFFF1F1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.error.withValues(alpha: isDark ? 0.30 : 0.25),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.error.withValues(alpha: 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Badge row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(99),
+                  color: AppColors.error.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(9999),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.fiber_manual_record, color: AppColors.error, size: 10),
+                    _PulseDot(),
                     SizedBox(width: 6),
                     Text(
-                      'LIVE LECTURE',
+                      'LIVE NOW',
                       style: TextStyle(
                         color: AppColors.error,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.primary, size: 16),
+              const Spacer(),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.error,
+                  borderRadius: BorderRadius.circular(9999),
+                ),
+                child: const Text(
+                  'Join Now',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+          // Subject + topic
           Text(
-            'Physics • Mechanics',
+            data['subject'] ?? '',
             style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: textColor,
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : AppColors.ink,
               letterSpacing: -0.4,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 2),
           Text(
-            'Teacher: Prof. H.C. Verma',
-            style: TextStyle(fontSize: 14, color: mutedTextColor),
+            data['topic'] ?? '',
+            style: TextStyle(
+              fontSize: 14,
+              color: isDark ? Colors.white60 : AppColors.textSecondary,
+            ),
           ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, thickness: 0.5, color: AppColors.hairline),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
+          // Info chips
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildLectureMetaItem(Icons.access_time_rounded, '08:00 AM - 09:30 AM', mutedTextColor),
-              _buildLectureMetaItem(Icons.room_rounded, 'Classroom A-102', mutedTextColor),
+              _SmInfoChip(
+                icon: Icons.person_outline_rounded,
+                label: data['teacher'] ?? '',
+                isDark: isDark,
+              ),
+              const SizedBox(width: 8),
+              _SmInfoChip(
+                icon: Icons.meeting_room_outlined,
+                label: data['classroom'] ?? '',
+                isDark: isDark,
+              ),
             ],
+          ),
+          const SizedBox(height: 8),
+          _SmInfoChip(
+            icon: Icons.access_time_rounded,
+            label: '${data['startTime']} – ${data['endTime']}',
+            isDark: isDark,
           ),
         ],
       ),
     );
   }
+}
 
-  // 3. Next Lecture Card
-  Widget _buildNextLectureCard(Color cardColor, Color textColor, Color mutedTextColor) {
+class _EmptyAlertCard extends StatelessWidget {
+  const _EmptyAlertCard({required this.isDark});
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
+        color: isDark ? AppColors.surfaceTile1 : AppColors.canvas,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.hairline, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(20),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
+              color: AppColors.primary.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.access_time_filled_rounded, color: AppColors.primary, size: 24),
+            child: const Icon(Icons.notifications_active_outlined,
+                color: AppColors.primary, size: 20),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '⏰ Next Lecture',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: mutedTextColor,
-                      ),
-                    ),
-                    const Text(
-                      'in 35 min',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
                 Text(
-                  'Chemistry • Organic Mechanics',
+                  'No Live Lecture Right Now',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: textColor,
+                    color: isDark ? Colors.white : AppColors.ink,
                     letterSpacing: -0.2,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Starts: 10:00 AM • Prof. Sudha Murthy',
-                  style: TextStyle(fontSize: 13, color: mutedTextColor),
+                  'You\'re all caught up! Next class details below.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark
+                        ? Colors.white38
+                        : AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -291,340 +425,551 @@ class HomeTab extends ConsumerWidget {
       ),
     );
   }
+}
 
-  // 4. Upcoming Test Card
-  Widget _buildUpcomingTestCard(Color cardColor, Color textColor, Color mutedTextColor) {
+// ─────────────────────────────────────────────────────────────────────────────
+// UPCOMING TEST CARD
+// ─────────────────────────────────────────────────────────────────────────────
+class _UpcomingTestCard extends StatelessWidget {
+  const _UpcomingTestCard({required this.isDark});
+  final bool isDark;
+
+  static const Color _accent = Color(0xFF10B981);
+
+  @override
+  Widget build(BuildContext context) {
+    final hasTest = _upcomingTest != null;
+    final data = _upcomingTest;
+
     return Container(
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
+        color: isDark ? AppColors.surfaceTile1 : AppColors.canvas,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.hairline, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header row
           Row(
             children: [
-              const Icon(Icons.assignment_turned_in_rounded, color: AppColors.success, size: 20),
-              const SizedBox(width: 8),
-              Text(
-                '📝 Upcoming Test',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: mutedTextColor,
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.assignment_rounded,
+                    color: _accent, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Upcoming Test',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? Colors.white38
+                            : AppColors.textSecondary,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    Text(
+                      hasTest
+                          ? '${data!['subject']} – ${data['topic']}'
+                          : 'No test scheduled',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : AppColors.ink,
+                        letterSpacing: -0.3,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
+              if (hasTest)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _accent.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(9999),
+                  ),
+                  child: Text(
+                    data!['date'] ?? '',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _accent,
+                    ),
+                  ),
+                ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Physics Unit Test • Electrostatics',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-              letterSpacing: -0.2,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Tomorrow • 10:00 AM (Duration: 3 hrs)',
-            style: TextStyle(fontSize: 14, color: mutedTextColor),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 5. Portion Completion Progress Card
-  Widget _buildPortionCompletionCard(Color cardColor, Color textColor, Color mutedTextColor) {
-    return Container(
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '📚 Portion Completion',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-              letterSpacing: -0.2,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildSubjectProgressRow('Physics', 0.82, '82%', textColor),
-          const SizedBox(height: 12),
-          _buildSubjectProgressRow('Chemistry', 0.64, '64%', textColor),
-          const SizedBox(height: 12),
-          _buildSubjectProgressRow('Maths', 0.91, '91%', textColor),
-          const SizedBox(height: 12),
-          _buildSubjectProgressRow('Biology', 0.70, '70% (Bio only)', textColor, isBio: true),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSubjectProgressRow(String subject, double value, String label, Color textColor, {bool isBio = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              subject,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isBio ? textColor.withValues(alpha: 0.6) : textColor,
-              ),
-            ),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: isBio ? textColor.withValues(alpha: 0.6) : AppColors.primary,
-              ),
+          if (hasTest) ...[
+            const SizedBox(height: 14),
+            Divider(
+                color: isDark ? Colors.white10 : const Color(0xFFF0F0F0),
+                height: 1),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _SmInfoChip(
+                      icon: Icons.access_time_rounded,
+                      label: '${data!['time']} • ${data['duration']}',
+                      isDark: isDark),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _SmInfoChip(
+                      icon: Icons.emoji_events_outlined,
+                      label: '${data['marks']} Marks',
+                      isDark: isDark),
+                ),
+              ],
             ),
           ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: value,
-            minHeight: 8,
-            backgroundColor: AppColors.hairline,
-            valueColor: AlwaysStoppedAnimation<Color>(
-              isBio ? Colors.grey : AppColors.primary,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // 6. Recent Test Results Card
-  Widget _buildRecentTestResultsCard(Color cardColor, Color textColor, Color mutedTextColor) {
-    return Container(
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '🎯 Recent Test Results',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-              letterSpacing: -0.2,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildScoreRow('Physics Test 5', '82 / 100', textColor),
-          const SizedBox(height: 10),
-          _buildScoreRow('Chemistry Test 3', '74 / 100', textColor),
-          const SizedBox(height: 10),
-          _buildScoreRow('Maths Test 8', '91 / 100', textColor),
         ],
       ),
     );
   }
+}
 
-  Widget _buildScoreRow(String testName, String score, Color textColor) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          testName,
-          style: TextStyle(fontSize: 14, color: textColor),
-        ),
-        Text(
-          score,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: textColor,
-          ),
-        ),
-      ],
-    );
-  }
+// ─────────────────────────────────────────────────────────────────────────────
+// UPCOMING LECTURE CARD
+// ─────────────────────────────────────────────────────────────────────────────
+class _UpcomingLectureCard extends StatelessWidget {
+  const _UpcomingLectureCard({required this.isDark});
+  final bool isDark;
 
-  // 7. Attendance Streak Card (Duolingo-style tracker)
-  Widget _buildAttendanceStreakCard(Color cardColor, Color textColor, Color mutedTextColor) {
-    // Mock attendance types for past 10 days
-    // 1: present, 2: late, 3: absent, 4: holiday
-    final mockStreak = [1, 1, 1, 1, 2, 4, 1, 3, 1, 1];
+  @override
+  Widget build(BuildContext context) {
+    final hasLecture = _upcomingLecture != null;
+    final data = _upcomingLecture;
 
     return Container(
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
+        color: isDark ? AppColors.surfaceTile1 : AppColors.canvas,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.hairline, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '🔥 Attendance Streak',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: textColor,
-                  letterSpacing: -0.2,
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.calendar_today_rounded,
+                    color: AppColors.primary, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Upcoming Lecture',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isDark
+                            ? Colors.white38
+                            : AppColors.textSecondary,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                    Text(
+                      hasLecture
+                          ? '${data!['subject']}'
+                          : 'No upcoming lecture',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : AppColors.ink,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Text(
-                '94% Attendance',
+              if (hasLecture && data!['countdownLabel'] != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(9999),
+                    border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.25)),
+                  ),
+                  child: Text(
+                    data['countdownLabel']!,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (hasLecture) ...[
+            const SizedBox(height: 10),
+            // Topic pill
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.04)
+                    : AppColors.canvasParchment,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.menu_book_rounded,
+                      size: 13,
+                      color: isDark
+                          ? Colors.white38
+                          : AppColors.textSecondary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      data!['topic'] ?? '',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.white70 : AppColors.ink,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Divider(
+                color: isDark ? Colors.white10 : const Color(0xFFF0F0F0),
+                height: 1),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _SmInfoChip(
+                      icon: Icons.person_outline_rounded,
+                      label: data['teacher'] ?? '',
+                      isDark: isDark),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _SmInfoChip(
+                      icon: Icons.meeting_room_outlined,
+                      label: data['classroom'] ?? '',
+                      isDark: isDark),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _SmInfoChip(
+              icon: Icons.access_time_rounded,
+              label: '${data['startTime']} – ${data['endTime']}',
+              isDark: isDark,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTICES / HOMEWORK CARD
+// ─────────────────────────────────────────────────────────────────────────────
+class _NoticesCard extends StatelessWidget {
+  const _NoticesCard({required this.isDark});
+  final bool isDark;
+
+  IconData _iconForType(String type) {
+    switch (type) {
+      case 'homework':
+        return Icons.edit_note_rounded;
+      case 'class':
+        return Icons.school_rounded;
+      default:
+        return Icons.campaign_outlined;
+    }
+  }
+
+  Color _colorForType(String type) {
+    switch (type) {
+      case 'homework':
+        return const Color(0xFFF59E0B);
+      case 'class':
+        return AppColors.primary;
+      default:
+        return const Color(0xFF8B5CF6);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceTile1 : AppColors.canvas,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.hairline, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.campaign_outlined,
+                    color: Color(0xFF8B5CF6), size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Homework & Notices',
                 style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.success,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : AppColors.ink,
+                  letterSpacing: -0.3,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          // Circular streak dots row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: mockStreak.map((status) => _buildStreakDot(status)).toList(),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Current Streak: 4 days • Longest Streak: 18 days',
-            style: TextStyle(fontSize: 13, color: mutedTextColor),
-          ),
+          // Notice items
+          ..._notices.asMap().entries.map((entry) {
+            final i = entry.key;
+            final notice = entry.value;
+            final accent = _colorForType(notice['type']!);
+            return Column(
+              children: [
+                if (i > 0)
+                  Divider(
+                      color: isDark
+                              ? Colors.white.withValues(alpha: 0.08)
+                              : const Color(0xFFF0F0F0),
+                      height: 20),
+                _NoticeItem(
+                  icon: _iconForType(notice['type']!),
+                  accentColor: accent,
+                  title: notice['title']!,
+                  subtitle: notice['subtitle']!,
+                  isDark: isDark,
+                ),
+              ],
+            );
+          }),
         ],
       ),
     );
   }
+}
 
-  Widget _buildStreakDot(int status) {
-    Color dotColor;
-    switch (status) {
-      case 1:
-        dotColor = AppColors.success; // Present (Green)
-        break;
-      case 2:
-        dotColor = Colors.orange; // Late (Orange)
-        break;
-      case 3:
-        dotColor = AppColors.error; // Absent (Red)
-        break;
-      case 4:
-      default:
-        dotColor = Colors.grey.shade400; // Holiday (Grey)
-        break;
-    }
+class _NoticeItem extends StatelessWidget {
+  const _NoticeItem({
+    required this.icon,
+    required this.accentColor,
+    required this.title,
+    required this.subtitle,
+    required this.isDark,
+  });
 
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: BoxDecoration(
-        color: dotColor.withValues(alpha: 0.15),
-        shape: BoxShape.circle,
-        border: Border.all(color: dotColor, width: 2),
-      ),
-      child: Center(
-        child: Icon(
-          status == 3
-              ? Icons.close_rounded
-              : status == 2
-                  ? Icons.priority_high_rounded
-                  : status == 4
-                      ? Icons.event_busy_rounded
-                      : Icons.check_rounded,
-          size: 12,
-          color: dotColor,
-        ),
-      ),
-    );
-  }
+  final IconData icon;
+  final Color accentColor;
+  final String title;
+  final String subtitle;
+  final bool isDark;
 
-  // 8. Announcements Card
-  Widget _buildAnnouncementsCard(Color cardColor, Color textColor, Color mutedTextColor) {
-    return Container(
-      decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.hairline),
-      ),
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '📢 Announcements',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-              letterSpacing: -0.2,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildAnnouncementItem('• Sunday Extra Class (Physics)', 'July 14 • 09:00 AM', textColor, mutedTextColor),
-          const SizedBox(height: 10),
-          _buildAnnouncementItem('• JEE Main Mock Test Schedule Updated', 'July 10 • Exam Cell', textColor, mutedTextColor),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAnnouncementItem(String title, String subtitle, Color textColor, Color mutedTextColor) {
-    return Column(
+  @override
+  Widget build(BuildContext context) {
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: textColor,
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: accentColor.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(8),
           ),
+          child: Icon(icon, size: 16, color: accentColor),
         ),
-        const SizedBox(height: 2),
-        Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: Text(
-            subtitle,
-            style: TextStyle(fontSize: 12, color: mutedTextColor),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : AppColors.ink,
+                  letterSpacing: -0.1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color:
+                      isDark ? Colors.white38 : AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _buildLectureMetaItem(IconData icon, String label, Color textColor) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: textColor),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(fontSize: 13, color: textColor),
+// ─────────────────────────────────────────────────────────────────────────────
+// SHARED SMALL WIDGETS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Animated pulsing red dot for LIVE badge
+class _PulseDot extends StatefulWidget {
+  const _PulseDot();
+
+  @override
+  State<_PulseDot> createState() => _PulseDotState();
+}
+
+class _PulseDotState extends State<_PulseDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 900))
+      ..repeat(reverse: true);
+    _anim = Tween<double>(begin: 0.4, end: 1.0).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _anim,
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: const BoxDecoration(
+          color: AppColors.error,
+          shape: BoxShape.circle,
         ),
-      ],
+      ),
+    );
+  }
+}
+
+/// Compact info chip: icon + text in a pill
+class _SmInfoChip extends StatelessWidget {
+  const _SmInfoChip({
+    required this.icon,
+    required this.label,
+    required this.isDark,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.05)
+            : AppColors.canvasParchment,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon,
+              size: 13,
+              color: isDark ? Colors.white38 : AppColors.textSecondary),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: isDark ? Colors.white70 : AppColors.ink,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

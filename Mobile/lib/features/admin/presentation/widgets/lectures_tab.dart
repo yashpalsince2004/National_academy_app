@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import 'package:national_academy/core/widgets/app_dropdown.dart';
 
 class LecturesTab extends StatefulWidget {
   const LecturesTab({super.key});
@@ -221,8 +222,8 @@ class _LecturesTabState extends State<LecturesTab> {
     showDialog(
       context: context,
       builder: (context) {
-        String? batch = 'Batch XII-A';
-        String? subject = 'Physics';
+        String batch = 'Batch XII-A';
+        String subject = 'Physics';
         String? teacher = 'Mr. Sharma';
         String time = '9:00 AM';
 
@@ -232,22 +233,24 @@ class _LecturesTabState extends State<LecturesTab> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Batch'),
+              AppDropdown<String>(
+                label: 'Batch',
+                headerText: 'Select Batch',
                 value: batch,
-                items: const [
-                  DropdownMenuItem(value: 'Batch XII-A', child: Text('Batch XII-A')),
-                  DropdownMenuItem(value: 'Batch XII-B', child: Text('Batch XII-B')),
+                items: [
+                  AppDropdownItem(value: 'Batch XII-A', label: 'Batch XII-A'),
+                  AppDropdownItem(value: 'Batch XII-B', label: 'Batch XII-B'),
                 ],
                 onChanged: (val) => batch = val,
               ),
               const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Subject'),
+              AppDropdown<String>(
+                label: 'Subject',
+                headerText: 'Select Subject',
                 value: subject,
-                items: const [
-                  DropdownMenuItem(value: 'Physics', child: Text('Physics')),
-                  DropdownMenuItem(value: 'Chemistry', child: Text('Chemistry')),
+                items: [
+                  AppDropdownItem(value: 'Physics', label: 'Physics'),
+                  AppDropdownItem(value: 'Chemistry', label: 'Chemistry'),
                 ],
                 onChanged: (val) => subject = val,
               ),

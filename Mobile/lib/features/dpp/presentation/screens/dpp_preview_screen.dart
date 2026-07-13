@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:go_router/go_router.dart';
+import 'package:national_academy/core/widgets/app_dropdown.dart';
 import '../../../../core/services/pdf_service.dart';
 import '../controllers/dpp_generator_controller.dart';
 import '../../data/models/dpp_model.dart';
@@ -525,38 +526,26 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
                   if (assigneeType == 'batch') ...[
                     const Text('Select Target Batch', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                     const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selectedBatchId,
-                          isExpanded: true,
-                          items: batches.map((b) => DropdownMenuItem(value: b['id'] as String, child: Text(b['name'] as String))).toList(),
-                          onChanged: (val) => setInnerState(() => selectedBatchId = val),
-                        ),
-                      ),
+                    AppDropdown<String>(
+                      value: selectedBatchId ?? '',
+                      headerText: 'Select Batch',
+                      items: batches.map((b) => AppDropdownItem(
+                        value: b['id'] as String,
+                        label: b['name'] as String,
+                      )).toList(),
+                      onChanged: (val) => setInnerState(() => selectedBatchId = val),
                     ),
                   ] else ...[
                     const Text('Select Target Student', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                     const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.withOpacity(0.3)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selectedStudentId,
-                          isExpanded: true,
-                          items: students.map((s) => DropdownMenuItem(value: s['id'] as String, child: Text(s['name'] as String))).toList(),
-                          onChanged: (val) => setInnerState(() => selectedStudentId = val),
-                        ),
-                      ),
+                    AppDropdown<String>(
+                      value: selectedStudentId ?? '',
+                      headerText: 'Select Student',
+                      items: students.map((s) => AppDropdownItem(
+                        value: s['id'] as String,
+                        label: s['name'] as String,
+                      )).toList(),
+                      onChanged: (val) => setInnerState(() => selectedStudentId = val),
                     ),
                   ],
                   const SizedBox(height: 20),

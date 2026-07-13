@@ -4,7 +4,7 @@ part 'student_model.freezed.dart';
 part 'student_model.g.dart';
 
 @freezed
-class PersonalInformation with _$PersonalInformation {
+abstract class PersonalInformation with _$PersonalInformation {
   const factory PersonalInformation({
     required String fullName,
     required String email,
@@ -23,7 +23,7 @@ class PersonalInformation with _$PersonalInformation {
 }
 
 @freezed
-class AcademicInformation with _$AcademicInformation {
+abstract class AcademicInformation with _$AcademicInformation {
   const factory AcademicInformation({
     required String admissionNumber,
     required String enrollmentDate,
@@ -40,7 +40,7 @@ class AcademicInformation with _$AcademicInformation {
 }
 
 @freezed
-class ParentInformation with _$ParentInformation {
+abstract class ParentInformation with _$ParentInformation {
   const factory ParentInformation({
     required String parentName,
     required String parentPhone,
@@ -51,7 +51,7 @@ class ParentInformation with _$ParentInformation {
 }
 
 @freezed
-class StudentModel with _$StudentModel {
+abstract class StudentModel with _$StudentModel {
   const factory StudentModel({
     required String studentId,
     @JsonKey(name: 'personal_information') required PersonalInformation personalInformation,
