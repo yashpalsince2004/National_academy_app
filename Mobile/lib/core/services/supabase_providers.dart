@@ -211,7 +211,7 @@ final studentUpcomingLectureProvider = FutureProvider<Map<String, String>?>((ref
     final rows = await client
         .from('timetable')
         .select('*, subjects(name), profiles:teacher_id(full_name)')
-        .in_('batch_id', batchIds)
+        .inFilter('batch_id', batchIds)
         .gte('lecture_date', todayStr)
         .order('lecture_date', ascending: true)
         .order('start_time', ascending: true)
