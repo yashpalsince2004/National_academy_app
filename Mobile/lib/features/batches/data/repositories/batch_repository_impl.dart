@@ -402,7 +402,7 @@ class SupabaseBatchRepositoryImpl implements BatchRepository {
       final teachId = teachRes != null ? teachRes['id'] as String : null;
 
       if (subId == null || teachId == null) {
-        throw AuthException('Invalid Subject or Teacher specified.');
+        throw AuthException('Invalid Subject or Teacher specified. subId: $subId (subjectName: ${lecture.subjectName}), teachId: $teachId (teacherName: ${lecture.teacherName}), courseId: $courseId');
       }
 
       const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
