@@ -40,9 +40,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
     return Scaffold(
       body: GridBackground(
-        child: IndexedStack(
-          index: _currentIndex,
-          children: _tabs,
+        child: SafeArea(
+          bottom: false,
+          child: IndexedStack(
+            index: _currentIndex,
+            children: _tabs,
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
