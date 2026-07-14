@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:national_academy/core/constants/app_colors.dart';
 import 'package:national_academy/features/authentication/data/repositories/auth_repository_impl.dart';
+import 'package:national_academy/core/widgets/app_dropdown.dart';
 
 class TeacherRegistrationScreen extends ConsumerStatefulWidget {
   const TeacherRegistrationScreen({super.key});
@@ -186,24 +187,16 @@ class _TeacherRegistrationScreenState extends ConsumerState<TeacherRegistrationS
                             style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
+                          AppDropdown<String>(
                             value: _selectedSubject,
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.book_outlined),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
                             items: _subjects.map((sub) {
-                              return DropdownMenuItem(
+                              return AppDropdownItem<String>(
                                 value: sub,
-                                child: Text(sub),
+                                label: sub,
                               );
                             }).toList(),
                             onChanged: (val) {
-                              if (val != null) {
-                                setState(() => _selectedSubject = val);
-                              }
+                              setState(() => _selectedSubject = val);
                             },
                           ),
                           const SizedBox(height: 20),

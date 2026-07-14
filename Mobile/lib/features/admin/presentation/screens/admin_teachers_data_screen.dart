@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:national_academy/core/constants/app_colors.dart';
 import 'package:national_academy/core/services/supabase_providers.dart';
+import 'package:national_academy/core/widgets/app_dropdown.dart';
 
 class TeacherDirectoryModel {
   final String id;
@@ -227,20 +228,14 @@ class _AdminTeachersDataScreenState extends ConsumerState<AdminTeachersDataScree
           Row(
             children: [
               Expanded(
-                child: DropdownButtonFormField<String>(
+                child: AppDropdown<String>(
                   value: _selectedSubject,
-                  decoration: InputDecoration(
-                    labelText: 'Subject',
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  ),
+                  headerText: 'Subject',
                   items: _subjectOptions.map((sub) {
-                    return DropdownMenuItem(value: sub, child: Text(sub));
+                    return AppDropdownItem<String>(value: sub, label: sub);
                   }).toList(),
                   onChanged: (val) {
-                    if (val != null) {
-                      setState(() => _selectedSubject = val);
-                    }
+                    setState(() => _selectedSubject = val);
                   },
                 ),
               ),
