@@ -102,6 +102,7 @@ serve(async (req) => {
         phone: phone ? phone.trim() : null,
         full_name: fullName.trim(),
         role: "teacher",
+        subject: subject?.trim() || "General",
       })
       .eq("id", uid);
 

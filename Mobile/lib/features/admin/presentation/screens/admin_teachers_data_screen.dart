@@ -182,7 +182,10 @@ class _AdminTeachersDataScreenState extends ConsumerState<AdminTeachersDataScree
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/admin/register-teacher'),
+        onPressed: () async {
+          await context.push('/admin/register-teacher');
+          _fetchData(isSilent: true);
+        },
         tooltip: 'Add Teacher',
         child: const Icon(Icons.add),
       ),

@@ -111,16 +111,20 @@ class _TeacherRegistrationScreenState extends ConsumerState<TeacherRegistrationS
           ),
           
           // Form Content
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Create Teacher Account',
+          SingleChildScrollView(
+            padding: EdgeInsets.only(
+              left: 24.0,
+              right: 24.0,
+              bottom: 32.0,
+              top: MediaQuery.of(context).padding.top + kToolbarHeight + 16.0,
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Create Teacher Account',
                       style: theme.textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         letterSpacing: -1.0,
@@ -358,9 +362,8 @@ class _TeacherRegistrationScreenState extends ConsumerState<TeacherRegistrationS
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
     );
   }
 }

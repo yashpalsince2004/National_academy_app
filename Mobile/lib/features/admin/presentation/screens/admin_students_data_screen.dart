@@ -433,7 +433,10 @@ class _AdminStudentsDataScreenState extends ConsumerState<AdminStudentsDataScree
                                       if (_allStudents.isEmpty) ...[
                                         const SizedBox(height: 24),
                                         ElevatedButton.icon(
-                                          onPressed: () => context.pushNamed('register-student'),
+                                          onPressed: () async {
+                                            await context.pushNamed('register-student');
+                                            _fetchData(isSilent: true);
+                                          },
                                           icon: const Icon(Icons.add_rounded),
                                           label: const Text('Add Student'),
                                         ),
