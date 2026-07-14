@@ -84,6 +84,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     Expanded(
                       child: _ActionCard(
                         icon: Icons.calendar_month_rounded,
+                        bgIcon: Icons.menu_book_rounded,
                         label: 'Schedule\nLecture',
                         description: "Create today's class",
                         accentColor: AppColors.primary,
@@ -96,6 +97,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     Expanded(
                       child: _ActionCard(
                         icon: Icons.assignment_rounded,
+                        bgIcon: Icons.assignment_turned_in_rounded,
                         label: 'Schedule\nTest',
                         description: 'Create new exam',
                         accentColor: const Color(0xFF10B981),
@@ -1186,6 +1188,7 @@ class _BatchSelectorCard extends StatelessWidget {
 class _ActionCard extends StatelessWidget {
   const _ActionCard({
     required this.icon,
+    required this.bgIcon,
     required this.label,
     required this.description,
     required this.accentColor,
@@ -1194,6 +1197,7 @@ class _ActionCard extends StatelessWidget {
   });
 
   final IconData icon;
+  final IconData bgIcon;
   final String label;
   final String description;
   final Color accentColor;
@@ -1202,74 +1206,140 @@ class _ActionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final startColor = isDark
+        ? Color.lerp(accentColor, Colors.black, 0.82)!
+        : Color.lerp(accentColor, Colors.white, 0.93)!;
+    final endColor = isDark
+        ? Color.lerp(accentColor, Colors.black, 0.95)!
+        : Color.lerp(accentColor, Colors.white, 0.98)!;
+
     return TactileButton(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isDark ? AppColors.surfaceTile1 : Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [startColor, endColor],
+          ),
           border: Border.all(
-            color: isDark ? Colors.white10 : const Color(0xFFE0E0E0),
-            width: 1,
+            color: isDark ? accentColor.withOpacity(0.3) : accentColor.withOpacity(0.2),
+            width: 1.5,
           ),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, 2),
-            ),
+            if (isDark)
+              BoxShadow(
+                color: accentColor.withOpacity(0.08),
+                blurRadius: 16,
+                spreadRadius: 1,
+              )
+            else
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: accentColor, size: 22),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : AppColors.ink,
-                letterSpacing: -0.2,
-                height: 1.25,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              description,
-              style: TextStyle(
-                fontSize: 12,
-                color:
-                    isDark ? Colors.white38 : AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 1,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: Stack(
+            children: [
+              // Faint background illustration
+              Positioned(
+                right: -25,
+                top: 15,
+                child: Transform.rotate(
+                  angle: -0.2,
+                  child: Icon(
+                    bgIcon,
+                    size: 125,
                     color: isDark
-                        ? Colors.white10
-                        : const Color(0xFFF0F0F0),
+                        ? accentColor.withOpacity(0.06)
+                        : accentColor.withOpacity(0.04),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(Icons.arrow_forward_rounded,
-                    size: 14, color: accentColor),
-              ],
-            ),
-          ],
+              ),
+              // Content
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Icon Container
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: accentColor.withOpacity(isDark ? 0.2 : 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: accentColor.withOpacity(isDark ? 0.4 : 0.25),
+                          width: 1.5,
+                        ),
+                        boxShadow: isDark ? [
+                          BoxShadow(
+                            color: accentColor.withOpacity(0.25),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
+                        ] : null,
+                      ),
+                      child: Icon(
+                        icon,
+                        color: isDark ? Colors.white : accentColor,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : AppColors.ink,
+                        letterSpacing: -0.3,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w500,
+                        color: isDark ? Colors.white54 : AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: accentColor.withOpacity(isDark ? 0.15 : 0.08),
+                            border: Border.all(
+                              color: accentColor.withOpacity(isDark ? 0.25 : 0.15),
+                              width: 1,
+                            ),
+                          ),
+                          child: Icon(
+                            Icons.arrow_forward_rounded,
+                            color: isDark ? Colors.white.withOpacity(0.9) : accentColor,
+                            size: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
