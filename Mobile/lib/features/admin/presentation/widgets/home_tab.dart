@@ -1213,132 +1213,146 @@ class _ActionCard extends StatelessWidget {
         ? Color.lerp(accentColor, Colors.black, 0.95)!
         : Color.lerp(accentColor, Colors.white, 0.98)!;
 
-    return TactileButton(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [startColor, endColor],
+    return AspectRatio(
+      aspectRatio: 1.0,
+      child: TactileButton(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [startColor, endColor],
+            ),
+            border: Border.all(
+              color: isDark ? accentColor.withOpacity(0.3) : accentColor.withOpacity(0.2),
+              width: 1.5,
+            ),
+            boxShadow: [
+              if (isDark)
+                BoxShadow(
+                  color: accentColor.withOpacity(0.08),
+                  blurRadius: 16,
+                  spreadRadius: 1,
+                )
+              else
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+            ],
           ),
-          border: Border.all(
-            color: isDark ? accentColor.withOpacity(0.3) : accentColor.withOpacity(0.2),
-            width: 1.5,
-          ),
-          boxShadow: [
-            if (isDark)
-              BoxShadow(
-                color: accentColor.withOpacity(0.08),
-                blurRadius: 16,
-                spreadRadius: 1,
-              )
-            else
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(22),
-          child: Stack(
-            children: [
-              // Faint background illustration
-              Positioned(
-                right: -25,
-                top: 15,
-                child: Transform.rotate(
-                  angle: -0.2,
-                  child: Icon(
-                    bgIcon,
-                    size: 125,
-                    color: isDark
-                        ? accentColor.withOpacity(0.06)
-                        : accentColor.withOpacity(0.04),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: Stack(
+              children: [
+                // Faint background illustration
+                Positioned(
+                  right: -20,
+                  top: 10,
+                  child: Transform.rotate(
+                    angle: -0.2,
+                    child: Icon(
+                      bgIcon,
+                      size: 95,
+                      color: isDark
+                          ? accentColor.withOpacity(0.05)
+                          : accentColor.withOpacity(0.04),
+                    ),
                   ),
                 ),
-              ),
-              // Content
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Icon Container
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: accentColor.withOpacity(isDark ? 0.2 : 0.1),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: accentColor.withOpacity(isDark ? 0.4 : 0.25),
-                          width: 1.5,
-                        ),
-                        boxShadow: isDark ? [
-                          BoxShadow(
-                            color: accentColor.withOpacity(0.25),
-                            blurRadius: 10,
-                            spreadRadius: 1,
+                // Content
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Icon Container
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: accentColor.withOpacity(isDark ? 0.2 : 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: accentColor.withOpacity(isDark ? 0.4 : 0.25),
+                            width: 1.5,
                           ),
-                        ] : null,
+                          boxShadow: isDark ? [
+                            BoxShadow(
+                              color: accentColor.withOpacity(0.25),
+                              blurRadius: 8,
+                              spreadRadius: 1,
+                            ),
+                          ] : null,
+                        ),
+                        child: Icon(
+                          icon,
+                          color: isDark ? Colors.white : accentColor,
+                          size: 20,
+                        ),
                       ),
-                      child: Icon(
-                        icon,
-                        color: isDark ? Colors.white : accentColor,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : AppColors.ink,
-                        letterSpacing: -0.3,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      description,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                        color: isDark ? Colors.white54 : AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: accentColor.withOpacity(isDark ? 0.15 : 0.08),
-                            border: Border.all(
-                              color: accentColor.withOpacity(isDark ? 0.25 : 0.15),
-                              width: 1,
+                      
+                      // Title & Bottom row
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            label,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : AppColors.ink,
+                              letterSpacing: -0.3,
+                              height: 1.15,
                             ),
                           ),
-                          child: Icon(
-                            Icons.arrow_forward_rounded,
-                            color: isDark ? Colors.white.withOpacity(0.9) : accentColor,
-                            size: 18,
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  description,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                    color: isDark ? Colors.white54 : AppColors.textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: accentColor.withOpacity(isDark ? 0.15 : 0.08),
+                                  border: Border.all(
+                                    color: accentColor.withOpacity(isDark ? 0.25 : 0.15),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.arrow_forward_rounded,
+                                  color: isDark ? Colors.white.withOpacity(0.9) : accentColor,
+                                  size: 14,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
