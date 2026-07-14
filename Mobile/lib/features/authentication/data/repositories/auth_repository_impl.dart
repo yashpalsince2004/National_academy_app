@@ -385,6 +385,8 @@ class SupabaseAuthRepositoryImpl implements AuthRepository {
       if (e is app_exceptions.AuthException) rethrow;
       throw app_exceptions.AuthException('Registration Error: ${e.toString()}');
     }
+  }
+
   @override
   Future<void> registerTeacher({
     required String email,
