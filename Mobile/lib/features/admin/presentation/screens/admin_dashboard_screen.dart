@@ -39,6 +39,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
+      extendBody: true,
       body: GridBackground(
         child: SafeArea(
           bottom: false,
