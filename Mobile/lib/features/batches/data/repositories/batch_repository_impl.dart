@@ -334,15 +334,62 @@ class SupabaseBatchRepositoryImpl implements BatchRepository {
   @override
   Future<void> addLecture(TimetableLectureModel lecture) async {
     try {
-      // Find subject_id from name or fallback
-      final subRes = await supabaseClient
-          .from('subjects')
-          .select('id')
-          .eq('name', lecture.subjectName)
-          .limit(1)
+      // Find the batch course_id first
+      final batchRow = await supabaseClient
+          .from('batches')
+          .select('course_id')
+          .eq('id', lecture.batchId)
           .maybeSingle();
-      
-      final subId = subRes != null ? subRes['id'] as String : null;
+      final courseId = batchRow != null ? batchRow['course_id'] as String? : null;
+
+      String? subId;
+      if (courseId != null) {
+        // Try exact course-specific match or prefix match
+        var subRes = await supabaseClient
+            .from('subjects')
+            .select('id')
+            .eq('course_id', courseId)
+            .ilike('name', '${lecture.subjectName}%')
+            .limit(1)
+            .maybeSingle();
+
+        if (subRes == null && (lecture.subjectName.toLowerCase() == 'mathematics' || lecture.subjectName.toLowerCase() == 'maths')) {
+          subRes = await supabaseClient
+              .from('subjects')
+              .select('id')
+              .eq('course_id', courseId)
+              .ilike('name', 'math%')
+              .limit(1)
+              .maybeSingle();
+        }
+
+        if (subRes != null) {
+          subId = subRes['id'] as String;
+        }
+      }
+
+      // Fallback: search globally if course-specific matches failed
+      if (subId == null) {
+        var subRes = await supabaseClient
+            .from('subjects')
+            .select('id')
+            .ilike('name', '${lecture.subjectName}%')
+            .limit(1)
+            .maybeSingle();
+
+        if (subRes == null && (lecture.subjectName.toLowerCase() == 'mathematics' || lecture.subjectName.toLowerCase() == 'maths')) {
+          subRes = await supabaseClient
+              .from('subjects')
+              .select('id')
+              .ilike('name', 'math%')
+              .limit(1)
+              .maybeSingle();
+        }
+
+        if (subRes != null) {
+          subId = subRes['id'] as String;
+        }
+      }
 
       // Find teacher_id from name
       final teachRes = await supabaseClient
