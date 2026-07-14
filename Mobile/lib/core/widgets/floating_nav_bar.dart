@@ -30,8 +30,16 @@ class FloatingNavBar extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final backgroundColor = isDark ? AppColors.surfaceTile1 : Colors.white;
-    final borderColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    // Define premium color palettes matching the design in the image
+    final barBgColor = isDark ? const Color(0xFF131315) : Colors.white;
+    final activeBgColor = isDark 
+        ? const Color(0xFF2C2C2F) 
+        : AppColors.primary.withValues(alpha: 0.08);
+    final activeColor = isDark ? Colors.white : AppColors.primary;
+    final inactiveColor = isDark ? Colors.white.withValues(alpha: 0.4) : const Color(0xFF94A3B8);
+    final borderColor = isDark 
+        ? Colors.white.withValues(alpha: 0.06) 
+        : Colors.black.withValues(alpha: 0.04);
 
     return SafeArea(
       bottom: true,
@@ -39,8 +47,9 @@ class FloatingNavBar extends StatelessWidget {
       child: Container(
         height: 72,
         margin: const EdgeInsets.only(left: 20, right: 20, bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: backgroundColor,
+          color: barBgColor,
           borderRadius: BorderRadius.circular(36),
           border: Border.all(
             color: borderColor,
@@ -48,84 +57,76 @@ class FloatingNavBar extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 16,
+              color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.06),
+              blurRadius: 24,
               spreadRadius: 0,
               offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final tabWidth = constraints.maxWidth / items.length;
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: List.generate(items.length, (index) {
+            final item = items[index];
+            final isSelected = index == currentIndex;
 
-            return Stack(
-              children: [
-                // Sliding Active Tab Highlight Pill
-                AnimatedPositioned(
-                  duration: const Duration(milliseconds: 320),
-                  curve: Curves.easeOutBack,
-                  left: currentIndex * tabWidth,
-                  width: tabWidth,
-                  top: 8,
-                  bottom: 8,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    decoration: BoxDecoration(
-                      color: isDark 
-                          ? AppColors.primary.withValues(alpha: 0.15) 
-                          : AppColors.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
+            return GestureDetector(
+              onTap: () => onTap(index),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeInOutCubic,
+                padding: EdgeInsets.symmetric(
+                  horizontal: isSelected ? 20 : 16,
+                  vertical: 10,
                 ),
-
-                // Tab Items
-                Row(
-                  children: List.generate(items.length, (index) {
-                    final item = items[index];
-                    final isSelected = index == currentIndex;
-                    const activeColor = AppColors.primary;
-                    final inactiveColor = isDark ? Colors.grey.shade500 : const Color(0xFF64748B);
-
-                    return Expanded(
-                      child: InkWell(
-                        onTap: () => onTap(index),
-                        splashColor: Colors.transparent,
-                        highlightColor: Colors.transparent,
-                        child: AnimatedScale(
-                          scale: isSelected ? 1.02 : 1.0,
-                          duration: const Duration(milliseconds: 200),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                isSelected ? item.activeIcon : item.icon,
-                                color: isSelected ? activeColor : inactiveColor,
-                                size: 24,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                item.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                                  color: isSelected ? activeColor : inactiveColor,
-                                  letterSpacing: -0.1,
-                                ),
-                              ),
-                            ],
-                          ),
+                decoration: BoxDecoration(
+                  color: isSelected ? activeBgColor : Colors.transparent,
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isSelected ? item.activeIcon : item.icon,
+                      color: isSelected ? activeColor : inactiveColor,
+                      size: 24,
+                    ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 280),
+                      curve: Curves.easeInOutCubic,
+                      child: ClipRect(
+                        child: Container(
+                          constraints: isSelected
+                              ? const BoxConstraints(maxWidth: 120)
+                              : const BoxConstraints(maxWidth: 0),
+                          child: isSelected
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      item.label,
+                                      maxLines: 1,
+                                      softWrap: false,
+                                      style: TextStyle(
+                                        color: activeColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        letterSpacing: -0.1,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : const SizedBox.shrink(),
                         ),
                       ),
-                    );
-                  }),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             );
-          },
+          }),
         ),
       ),
     );
