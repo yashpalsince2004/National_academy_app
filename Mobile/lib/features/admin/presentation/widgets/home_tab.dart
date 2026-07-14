@@ -327,15 +327,28 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     );
   }
 
+  /// Converts DateTime.weekday (1=Mon … 7=Sun) to a full day name.
+  String _dayName(int weekday) {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    return days[(weekday - 1).clamp(0, 6)];
+  }
+
+  /// Converts a month number (1–12) to an abbreviated month name.
+  String _monthName(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[(month - 1).clamp(0, 11)];
+  }
+
   void _showScheduleLectureDialog(
       BuildContext context, String batchId, BatchDetailState details) {
     final roomController = TextEditingController(text: 'Room 101');
-    final dayController = TextEditingController(text: 'Monday');
     final startTimeController = TextEditingController(text: '09:00 AM');
     final endTimeController = TextEditingController(text: '10:30 AM');
 
     String selectedSubject = '';
     String selectedTeacherName = '';
+    DateTime? selectedDate;
 
     showDialog(
       context: context,
@@ -454,12 +467,80 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           color: isDark ? Colors.white : AppColors.ink),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: dayController,
-                      decoration:
-                          const InputDecoration(labelText: 'Day of Week'),
-                      style: TextStyle(
-                          color: isDark ? Colors.white : AppColors.ink),
+                    // Date Picker Field
+                    GestureDetector(
+                      onTap: () async {
+                        final now = DateTime.now();
+                        final tomorrow = now.add(const Duration(days: 1));
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: tomorrow,
+                          firstDate: tomorrow,
+                          lastDate: now.add(const Duration(days: 365)),
+                          helpText: 'Select Lecture Date',
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: ColorScheme.light(
+                                  primary: AppColors.primary,
+                                  onPrimary: Colors.white,
+                                  surface: isDark ? AppColors.surfaceTile1 : Colors.white,
+                                  onSurface: isDark ? Colors.white : AppColors.ink,
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setState(() => selectedDate = picked);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: isDark ? Colors.white10 : const Color(0xFFF5F5F5),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: selectedDate == null
+                                ? Colors.grey.withValues(alpha: 0.3)
+                                : AppColors.primary.withValues(alpha: 0.6),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today_rounded,
+                              size: 18,
+                              color: selectedDate == null
+                                  ? Colors.grey
+                                  : AppColors.primary,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                selectedDate == null
+                                    ? 'Select Date'
+                                    : '${_dayName(selectedDate!.weekday)}, '
+                                      '${selectedDate!.day} '
+                                      '${_monthName(selectedDate!.month)} '
+                                      '${selectedDate!.year}',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: selectedDate == null
+                                      ? Colors.grey
+                                      : (isDark ? Colors.white : AppColors.ink),
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_drop_down_rounded,
+                              color: Colors.grey.withValues(alpha: 0.7),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -502,6 +583,11 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                               'Please select Subject and Teacher')));
                       return;
                     }
+                    if (selectedDate == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Please select a lecture date')));
+                      return;
+                    }
                     try {
                       await ref
                           .read(
@@ -510,7 +596,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                             subjectName: selectedSubject,
                             teacherName: selectedTeacherName,
                             room: roomController.text.trim(),
-                            dayOfWeek: dayController.text.trim(),
+                            dayOfWeek: _dayName(selectedDate!.weekday),
                             startTime: startTimeController.text.trim(),
                             endTime: endTimeController.text.trim(),
                           );
