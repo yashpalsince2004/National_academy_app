@@ -428,6 +428,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     showDialog(
       context: context,
       builder: (dialogContext) {
+        String? dialogError;
         return Consumer(
           builder: (context, ref, child) {
             final details = ref.watch(batchDetailControllerProvider(batchId));
@@ -635,6 +636,34 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           style: TextStyle(
                               color: isDark ? Colors.white : AppColors.ink),
                         ),
+                        if (dialogError != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    dialogError!,
+                                    style: const TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -656,14 +685,15 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                       ),
                       onPressed: () async {
                         if (selectedSubject.isEmpty || selectedTeacherName.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                              content: Text(
-                                  'Please select Subject and Teacher')));
+                          setState(() {
+                            dialogError = 'Please select Subject and Teacher';
+                          });
                           return;
                         }
                         if (selectedDate == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                              content: Text('Please select a lecture date')));
+                          setState(() {
+                            dialogError = 'Please select a lecture date';
+                          });
                           return;
                         }
 
@@ -681,9 +711,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                             
                             if (lecStart != null && lecEnd != null && testStart != null && testEnd != null) {
                               if (lecStart < testEnd && lecEnd > testStart) {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                    content: Text(
-                                        'Time Conflict: This slot overlaps with a scheduled mock test ($testSub: $testTimeStr).')));
+                                setState(() {
+                                  dialogError = 'Time Conflict: This slot overlaps with a scheduled mock test ($testSub: $testTimeStr).';
+                                });
                                 return;
                               }
                             }
@@ -691,6 +721,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                         }
 
                         try {
+                          setState(() {
+                            dialogError = null;
+                          });
                           await ref
                               .read(
                                   batchDetailControllerProvider(batchId).notifier)
@@ -705,16 +738,26 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                                     ? '${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}'
                                     : null,
                               );
-                          if (!context.mounted) return;
+                          if (!dialogContext.mounted) return;
                           Navigator.pop(dialogContext);
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                              content: Text('Lecture scheduled successfully!')));
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                                content: Text('Lecture scheduled successfully!')));
+                          }
                         } catch (e) {
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content:
-                                      Text('Error scheduling lecture: $e')));
+                          String displayError = e.toString();
+                          if (displayError.contains('AuthException:')) {
+                            displayError = displayError.split('AuthException:').last.trim();
+                          }
+                          if (displayError.contains('Exception:')) {
+                            displayError = displayError.split('Exception:').last.trim();
+                          }
+                          if (displayError.contains('Failed to add lecture:')) {
+                            displayError = displayError.split('Failed to add lecture:').last.trim();
+                          }
+                          setState(() {
+                            dialogError = displayError;
+                          });
                         }
                       },
                       child: const Text('Schedule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
