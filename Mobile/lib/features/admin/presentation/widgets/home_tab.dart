@@ -577,8 +577,17 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   child: const Text('Cancel',
                       style: TextStyle(color: AppColors.textSecondary)),
                 ),
-                TactileButton(
-                  onTap: () async {
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: () async {
                     if (selectedSubject.isEmpty || selectedTeacherName.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                           content: Text(
@@ -617,10 +626,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                                   Text('Error scheduling lecture: $e')));
                     }
                   },
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    child: const Text('Schedule'),
-                  ),
+                  child: const Text('Schedule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
