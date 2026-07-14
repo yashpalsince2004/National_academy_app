@@ -255,7 +255,7 @@ class SupabaseBatchRepositoryImpl implements BatchRepository {
     try {
       final res = await supabaseClient
           .from('profiles')
-          .select('id, full_name, email')
+          .select('id, full_name, email, subject')
           .eq('role', 'teacher');
       return List<Map<String, dynamic>>.from(res as List);
     } catch (e) {
