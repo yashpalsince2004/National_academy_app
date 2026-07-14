@@ -361,13 +361,16 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
             // Generate list of subject options dynamically from the teachers list
             final subjectOptions = {'Physics', 'Chemistry', 'Mathematics', 'Biology', 'Other'};
-            for (final t in details.teachers) {
+             for (final t in details.teachers) {
               final s = t['subject'] as String?;
               if (s != null && s.isNotEmpty) {
-                if (s.toLowerCase() == 'maths' || s.toLowerCase() == 'mathematics') {
-                  subjectOptions.add('Mathematics');
-                } else {
-                  subjectOptions.add(s[0].toUpperCase() + s.substring(1).toLowerCase());
+                final subs = s.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty);
+                for (final sub in subs) {
+                  if (sub.toLowerCase() == 'maths' || sub.toLowerCase() == 'mathematics') {
+                    subjectOptions.add('Mathematics');
+                  } else {
+                    subjectOptions.add(sub[0].toUpperCase() + sub.substring(1).toLowerCase());
+                  }
                 }
               }
             }
@@ -381,12 +384,16 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             // Filter teachers based on selected subject
             final filteredTeachers = details.teachers.where((t) {
               if (selectedSubject.isEmpty) return false;
-              final teacherSubject = (t['subject'] as String? ?? '').toLowerCase();
+              final teacherSubjects = (t['subject'] as String? ?? '')
+                  .toLowerCase()
+                  .split(',')
+                  .map((s) => s.trim())
+                  .toList();
               final selSub = selectedSubject.toLowerCase();
               if (selSub == 'maths' || selSub == 'mathematics') {
-                return teacherSubject == 'maths' || teacherSubject == 'mathematics';
+                return teacherSubjects.contains('maths') || teacherSubjects.contains('mathematics');
               }
-              return teacherSubject == selSub;
+              return teacherSubjects.contains(selSub);
             }).toList();
 
             // If the selected teacher is no longer in the filtered list, reset it

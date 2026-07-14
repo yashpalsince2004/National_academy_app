@@ -107,7 +107,12 @@ class _AdminTeachersDataScreenState extends ConsumerState<AdminTeachersDataScree
           teacher.email.toLowerCase().contains(query) ||
           teacher.phone.toLowerCase().contains(query);
 
-      final matchesSubject = _selectedSubject == 'All' || teacher.subject == _selectedSubject;
+      final teacherSubs = teacher.subject
+          .split(',')
+          .map((s) => s.trim().toLowerCase())
+          .toList();
+      final matchesSubject = _selectedSubject == 'All' ||
+          teacherSubs.contains(_selectedSubject.toLowerCase());
 
       return matchesSearch && matchesSubject;
     }).toList();
@@ -289,24 +294,31 @@ class _AdminTeachersDataScreenState extends ConsumerState<AdminTeachersDataScree
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              teacher.subject,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: theme.colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                        ],
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: teacher.subject
+                            .split(',')
+                            .map((s) => s.trim())
+                            .where((s) => s.isNotEmpty)
+                            .map((sub) => Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary
+                                        .withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    sub,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
                       ),
                     ],
                   ),
@@ -386,8 +398,15 @@ class _AdminTeachersDataScreenState extends ConsumerState<AdminTeachersDataScree
     final isDark = theme.brightness == Brightness.dark;
 
     final nameController = TextEditingController(text: teacher.name);
-    final phoneController = TextEditingController(text: teacher.phone == 'N/A' ? '' : teacher.phone);
+    final phoneController = TextEditingController(
+        text: teacher.phone == 'N/A' ? '' : teacher.phone);
     bool isSaving = false;
+
+    final selectedSubjects = teacher.subject
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
 
     showModalBottomSheet(
       context: context,
@@ -430,7 +449,45 @@ class _AdminTeachersDataScreenState extends ConsumerState<AdminTeachersDataScree
                     ),
                     keyboardType: TextInputType.phone,
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Select Subjects',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      'Physics',
+                      'Chemistry',
+                      'Mathematics',
+                      'Biology',
+                      'Other'
+                    ].map((sub) {
+                      final isSelected = selectedSubjects.contains(sub);
+                      return FilterChip(
+                        label: Text(sub),
+                        selected: isSelected,
+                        selectedColor:
+                            theme.colorScheme.primary.withOpacity(0.15),
+                        checkmarkColor: theme.colorScheme.primary,
+                        onSelected: (selected) {
+                          setSheetState(() {
+                            if (selected) {
+                              selectedSubjects.add(sub);
+                            } else {
+                              selectedSubjects.remove(sub);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -448,19 +505,26 @@ class _AdminTeachersDataScreenState extends ConsumerState<AdminTeachersDataScree
                                 await client.from('profiles').update({
                                   'full_name': nameController.text.trim(),
                                   'phone': phoneController.text.trim(),
+                                  'subject': selectedSubjects.isEmpty
+                                      ? 'Other'
+                                      : selectedSubjects.join(', '),
                                 }).eq('id', teacher.id);
 
                                 if (mounted) {
                                   Navigator.pop(sheetContext);
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Profile updated successfully!')),
+                                    const SnackBar(
+                                        content: Text(
+                                            'Profile updated successfully!')),
                                   );
                                   _fetchData(isSilent: true);
                                 }
                               } catch (e) {
                                 if (mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Error updating profile: $e')),
+                                    SnackBar(
+                                        content: Text(
+                                            'Error updating profile: $e')),
                                   );
                                 }
                               } finally {
