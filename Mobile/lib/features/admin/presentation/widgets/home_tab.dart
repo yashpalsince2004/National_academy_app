@@ -149,6 +149,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         room: lecture.room,
         onEdit: () => _showEditLectureDialog(
           context,
+          batchId: _selectedBatchId,
+          lectureId: lecture.id,
           subject: lecture.subjectName,
           teacher: lecture.teacherName,
           startTime: lecture.startTime,
@@ -171,6 +173,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       isPlaceholder: true,
       onEdit: () => _showEditLectureDialog(
         context,
+        batchId: _selectedBatchId,
+        lectureId: null,
         subject: _lectureSubject,
         teacher: _lectureTeacher,
         startTime: _lectureStartTime,
@@ -750,6 +754,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
   void _showEditLectureDialog(
     BuildContext context, {
+    required String? batchId,
+    required String? lectureId,
     required String subject,
     required String teacher,
     required String startTime,
@@ -829,12 +835,90 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             ),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+                ),
+              ],
             ),
-            TactileButton(
-              onTap: () {
+            const SizedBox(height: 8),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                elevation: 0,
+              ),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Cancel Lecture'),
+                    content: const Text('Are you sure you want to cancel this scheduled lecture?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('No'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Yes, Cancel It', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  if (lectureId != null && batchId != null) {
+                    try {
+                      await ref
+                          .read(batchDetailControllerProvider(batchId).notifier)
+                          .deleteLecture(lectureId);
+                      if (!dialogContext.mounted || !context.mounted) return;
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Lecture cancelled successfully!')));
+                    } catch (e) {
+                      if (!dialogContext.mounted || !context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error cancelling lecture: $e')));
+                    }
+                  } else {
+                    if (!dialogContext.mounted || !context.mounted) return;
+                    setState(() {
+                      _lectureSubject = 'Physics';
+                      _lectureTeacher = 'Mr. R. Sharma';
+                      _lectureRoom = 'Room 101';
+                      _lectureDayOfWeek = 'Monday';
+                      _lectureStartTime = '09:00 AM';
+                      _lectureEndTime = '10:30 AM';
+                    });
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Lecture cancelled successfully!')));
+                  }
+                }
+              },
+              child: const Text('Cancel Lecture', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                elevation: 0,
+              ),
+              onPressed: () {
                 if (subjectController.text.trim().isEmpty ||
                     teacherController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -853,10 +937,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('Upcoming lecture updated successfully!')));
               },
-              child: ElevatedButton(
-                onPressed: () {},
-                child: const Text('Save'),
-              ),
+              child: const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ],
         );
