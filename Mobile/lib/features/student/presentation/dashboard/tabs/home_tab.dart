@@ -58,7 +58,6 @@ class HomeTab extends ConsumerWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final paddingTop = MediaQuery.of(context).padding.top;
-    final upcomingLectureAsync = ref.watch(studentUpcomingLectureProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -86,11 +85,27 @@ class HomeTab extends ConsumerWidget {
                   const SizedBox(height: 16),
 
                   // 3. UPCOMING LECTURE
-                  upcomingLectureAsync.when(
-                    data: (lecture) => _UpcomingLectureCard(
-                      isDark: isDark,
-                      upcomingLecture: lecture,
-                    ),
+                  ref.watch(studentUpcomingLecturesProvider).when(
+                    data: (lectures) {
+                      if (lectures.isEmpty) {
+                        return _UpcomingLectureCard(
+                          isDark: isDark,
+                          upcomingLecture: null,
+                        );
+                      }
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: lectures.map((lecture) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12.0),
+                            child: _UpcomingLectureCard(
+                              isDark: isDark,
+                              upcomingLecture: lecture,
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
                     loading: () => _UpcomingLectureCard(
                       isDark: isDark,
                       upcomingLecture: null,

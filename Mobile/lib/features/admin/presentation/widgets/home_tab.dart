@@ -137,27 +137,35 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     }
 
     if (details.lectures.isNotEmpty) {
-      final TimetableLectureModel lecture = details.lectures.first;
-      return _UpcomingLectureCard(
-        isDark: isDark,
-        isLoading: false,
-        subject: lecture.subjectName,
-        teacher: lecture.teacherName,
-        startTime: lecture.startTime,
-        endTime: lecture.endTime,
-        dayOfWeek: lecture.dayOfWeek,
-        room: lecture.room,
-        onEdit: () => _showEditLectureDialog(
-          context,
-          batchId: _selectedBatchId,
-          lectureId: lecture.id,
-          subject: lecture.subjectName,
-          teacher: lecture.teacherName,
-          startTime: lecture.startTime,
-          endTime: lecture.endTime,
-          dayOfWeek: lecture.dayOfWeek,
-          room: lecture.room,
-        ),
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: details.lectures.map((lecture) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: _UpcomingLectureCard(
+              isDark: isDark,
+              isLoading: false,
+              subject: lecture.subjectName,
+              teacher: lecture.teacherName,
+              startTime: lecture.startTime,
+              endTime: lecture.endTime,
+              dayOfWeek: lecture.dayOfWeek,
+              room: lecture.room,
+              onEdit: () => _showEditLectureDialog(
+                context,
+                batchId: _selectedBatchId,
+                lectureId: lecture.id,
+                subject: lecture.subjectName,
+                teacher: lecture.teacherName,
+                startTime: lecture.startTime,
+                endTime: lecture.endTime,
+                dayOfWeek: lecture.dayOfWeek,
+                room: lecture.room,
+              ),
+            ),
+          );
+        }).toList(),
       );
     }
 

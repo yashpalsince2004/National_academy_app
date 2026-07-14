@@ -280,3 +280,87 @@ final studentUpcomingLectureProvider = FutureProvider<Map<String, String>?>((ref
   }
 });
 
+final studentUpcomingLecturesProvider = FutureProvider<List<Map<String, String>>>((ref) async {
+  final studentId = await ref.watch(studentIdProvider.future);
+  if (studentId == null) return [];
+
+  final batchIds = await ref.watch(studentBatchIdsProvider.future);
+  if (batchIds.isEmpty) return [];
+
+  final client = ref.watch(supabaseClientProvider);
+  final now = DateTime.now();
+  final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+  try {
+    final rows = await client
+        .from('timetable')
+        .select('*, subjects(name), profiles:teacher_id(full_name)')
+        .inFilter('batch_id', batchIds)
+        .gte('lecture_date', todayStr)
+        .order('lecture_date', ascending: true)
+        .order('start_time', ascending: true);
+
+    if ((rows as List).isEmpty) return [];
+
+    String formatTime(String timeStr) {
+      if (timeStr.isEmpty) return '';
+      try {
+        final parts = timeStr.split(':');
+        if (parts.length >= 2) {
+          final hour = int.parse(parts[0]);
+          final min = int.parse(parts[1]);
+          final period = hour >= 12 ? 'PM' : 'AM';
+          final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+          return '${displayHour.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')} $period';
+        }
+      } catch (_) {}
+      return timeStr;
+    }
+
+    return rows.map((row) {
+      final sub = row['subjects'] as Map<String, dynamic>?;
+      final prof = row['profiles'] as Map<String, dynamic>?;
+      
+      final subject = sub != null ? sub['name'] as String? ?? 'General' : 'General';
+      final teacher = prof != null ? prof['full_name'] as String? ?? 'Teacher' : 'Teacher';
+      final classroom = row['room'] as String? ?? 'Room 101';
+      final startTime = row['start_time'] as String? ?? '';
+      final endTime = row['end_time'] as String? ?? '';
+      final lectureDate = row['lecture_date'] as String? ?? '';
+      
+      final formattedStartTime = formatTime(startTime);
+      final formattedEndTime = formatTime(endTime);
+      
+      String countdownLabel = '';
+      if (lectureDate.isNotEmpty) {
+        try {
+          final parsedDate = DateTime.parse(lectureDate);
+          final diffDays = DateTime(parsedDate.year, parsedDate.month, parsedDate.day)
+              .difference(DateTime(now.year, now.month, now.day))
+              .inDays;
+          if (diffDays == 0) {
+            countdownLabel = 'Today';
+          } else if (diffDays == 1) {
+            countdownLabel = 'Tomorrow';
+          } else {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            countdownLabel = '${parsedDate.day} ${months[parsedDate.month - 1]}';
+          }
+        } catch (_) {}
+      }
+      
+      return {
+        'subject': subject,
+        'topic': 'Scheduled Class Lecture',
+        'teacher': teacher,
+        'classroom': classroom,
+        'startTime': formattedStartTime,
+        'endTime': formattedEndTime,
+        'countdownLabel': countdownLabel,
+      };
+    }).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
