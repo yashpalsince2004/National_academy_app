@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:national_academy/core/constants/app_colors.dart';
+import 'package:national_academy/core/services/supabase_providers.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mock data – replace with real providers when available
@@ -20,15 +21,6 @@ const Map<String, String>? _liveLecture = {
   'endTime': '09:30 AM',
 };
 
-const Map<String, String>? _upcomingLecture = {
-  'subject': 'Chemistry',
-  'topic': 'Organic Reactions & Mechanisms',
-  'teacher': 'Prof. Sudha Murthy',
-  'classroom': 'Room B-201',
-  'startTime': '10:00 AM',
-  'endTime': '11:30 AM',
-  'countdownLabel': 'in 35 min',
-};
 
 const Map<String, String>? _upcomingTest = {
   'subject': 'Physics',
@@ -66,6 +58,7 @@ class HomeTab extends ConsumerWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final paddingTop = MediaQuery.of(context).padding.top;
+    final upcomingLectureAsync = ref.watch(studentUpcomingLectureProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -93,7 +86,20 @@ class HomeTab extends ConsumerWidget {
                   const SizedBox(height: 16),
 
                   // 3. UPCOMING LECTURE
-                  _UpcomingLectureCard(isDark: isDark),
+                  upcomingLectureAsync.when(
+                    data: (lecture) => _UpcomingLectureCard(
+                      isDark: isDark,
+                      upcomingLecture: lecture,
+                    ),
+                    loading: () => _UpcomingLectureCard(
+                      isDark: isDark,
+                      upcomingLecture: null,
+                    ),
+                    error: (err, _) => _UpcomingLectureCard(
+                      isDark: isDark,
+                      upcomingLecture: null,
+                    ),
+                  ),
                   const SizedBox(height: 16),
 
                   // 4. HOMEWORK / NOTICES
@@ -556,13 +562,17 @@ class _UpcomingTestCard extends StatelessWidget {
 // UPCOMING LECTURE CARD
 // ─────────────────────────────────────────────────────────────────────────────
 class _UpcomingLectureCard extends StatelessWidget {
-  const _UpcomingLectureCard({required this.isDark});
+  const _UpcomingLectureCard({
+    required this.isDark,
+    required this.upcomingLecture,
+  });
   final bool isDark;
+  final Map<String, String>? upcomingLecture;
 
   @override
   Widget build(BuildContext context) {
-    final hasLecture = _upcomingLecture != null;
-    final data = _upcomingLecture;
+    final hasLecture = upcomingLecture != null;
+    final data = upcomingLecture;
 
     return Container(
       padding: const EdgeInsets.all(18),

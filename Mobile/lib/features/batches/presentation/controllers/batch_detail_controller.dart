@@ -168,6 +168,7 @@ class BatchDetailController extends StateNotifier<BatchDetailState> {
     required String dayOfWeek,
     required String startTime,
     required String endTime,
+    String? lectureDate,
   }) async {
     state = state.copyWith(isLoading: true);
     try {
@@ -180,6 +181,7 @@ class BatchDetailController extends StateNotifier<BatchDetailState> {
         dayOfWeek: dayOfWeek,
         startTime: startTime,
         endTime: endTime,
+        lectureDate: lectureDate,
       );
       await repository.addLecture(lec);
       await loadAllDetails();

@@ -601,6 +601,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                             dayOfWeek: _dayName(selectedDate!.weekday),
                             startTime: startTimeController.text.trim(),
                             endTime: endTimeController.text.trim(),
+                            lectureDate: selectedDate != null
+                                ? '${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}'
+                                : null,
                           );
                       if (!context.mounted) return;
                       Navigator.pop(dialogContext);

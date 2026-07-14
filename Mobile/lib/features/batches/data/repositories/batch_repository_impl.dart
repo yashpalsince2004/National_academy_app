@@ -304,9 +304,14 @@ class SupabaseBatchRepositoryImpl implements BatchRepository {
           .select('*, subjects(name), profiles:teacher_id(full_name)')
           .eq('batch_id', batchId);
 
+      const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
       return (res as List).map((json) {
         final sub = json['subjects'] as Map<String, dynamic>?;
         final prof = json['profiles'] as Map<String, dynamic>?;
+
+        final dayInt = json['day_of_week'] as int? ?? 0;
+        final dayStr = (dayInt >= 0 && dayInt <= 6) ? weekdays[dayInt] : 'Monday';
 
         return TimetableLectureModel(
           id: json['id'] as String? ?? '',
@@ -314,9 +319,10 @@ class SupabaseBatchRepositoryImpl implements BatchRepository {
           subjectName: sub != null ? sub['name'] as String? ?? 'Subject' : 'Subject',
           teacherName: prof != null ? prof['full_name'] as String? ?? 'Teacher' : 'Teacher',
           room: json['room'] as String? ?? 'Room 101',
-          dayOfWeek: json['day_of_week'] as String? ?? 'Monday',
+          dayOfWeek: dayStr,
           startTime: json['start_time'] as String? ?? '',
           endTime: json['end_time'] as String? ?? '',
+          lectureDate: json['lecture_date'] as String?,
         );
       }).toList();
     } catch (e) {
@@ -352,14 +358,19 @@ class SupabaseBatchRepositoryImpl implements BatchRepository {
         throw AuthException('Invalid Subject or Teacher specified.');
       }
 
+      const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      final dayInt = weekdays.indexOf(lecture.dayOfWeek);
+      final dayToSend = dayInt == -1 ? 0 : dayInt;
+
       await supabaseClient.from('timetable').insert({
         'batch_id': lecture.batchId,
         'subject_id': subId,
         'teacher_id': teachId,
-        'day_of_week': lecture.dayOfWeek,
+        'day_of_week': dayToSend,
         'start_time': lecture.startTime,
         'end_time': lecture.endTime,
         'room': lecture.room,
+        'lecture_date': lecture.lectureDate,
       });
     } catch (e) {
       throw AuthException('Failed to add lecture: $e');

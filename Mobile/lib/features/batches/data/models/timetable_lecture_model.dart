@@ -7,6 +7,7 @@ class TimetableLectureModel {
   final String dayOfWeek;
   final String startTime; // "HH:MM AM/PM" or "HH:MM:SS"
   final String endTime;
+  final String? lectureDate; // "YYYY-MM-DD"
 
   TimetableLectureModel({
     required this.id,
@@ -17,6 +18,7 @@ class TimetableLectureModel {
     required this.dayOfWeek,
     required this.startTime,
     required this.endTime,
+    this.lectureDate,
   });
 
   factory TimetableLectureModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class TimetableLectureModel {
       dayOfWeek: json['day_of_week'] as String? ?? 'Monday',
       startTime: json['start_time'] as String? ?? '',
       endTime: json['end_time'] as String? ?? '',
+      lectureDate: json['lecture_date'] as String?,
     );
   }
 
@@ -42,6 +45,7 @@ class TimetableLectureModel {
       'day_of_week': dayOfWeek,
       'start_time': startTime,
       'end_time': endTime,
+      'lecture_date': lectureDate,
     };
   }
 }
