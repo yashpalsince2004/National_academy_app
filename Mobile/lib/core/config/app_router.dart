@@ -13,6 +13,8 @@ import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
 import '../../features/admin/presentation/screens/student_registration_screen.dart';
 import '../../features/admin/presentation/screens/admin_registration_screen.dart';
 import '../../features/admin/presentation/screens/admin_students_data_screen.dart';
+import '../../features/admin/presentation/screens/teacher_registration_screen.dart';
+import '../../features/admin/presentation/screens/admin_teachers_data_screen.dart';
 import '../../features/student/presentation/screens/student_dashboard_screen.dart';
 import '../../features/student/presentation/registration/student_registration_screen.dart' as student_reg;
 import '../../features/batches/presentation/screens/batch_dashboard_screen.dart';
@@ -158,6 +160,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/admin/students',
         name: 'admin-students',
         builder: (context, state) => const AdminStudentsDataScreen(),
+      ),
+      GoRoute(
+        path: '/admin/register-teacher',
+        name: 'register-teacher',
+        builder: (context, state) => const TeacherRegistrationScreen(),
+      ),
+      GoRoute(
+        path: '/admin/teachers',
+        name: 'admin-teachers',
+        builder: (context, state) => const AdminTeachersDataScreen(),
       ),
       GoRoute(
         path: '/admin/batches',

@@ -45,5 +45,14 @@ abstract class AuthRepository {
     String? phone,
   });
 
+  Future<void> registerTeacher({
+    required String email,
+    required String username,
+    required String password,
+    required String fullName,
+    String? phone,
+    String? subject,
+  });
+
   Stream<AppUser?> get authStateChanges;
 }

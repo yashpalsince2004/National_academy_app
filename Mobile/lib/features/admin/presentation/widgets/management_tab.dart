@@ -14,7 +14,8 @@ class ManagementTab extends StatelessWidget {
       {'title': 'Students', 'icon': Icons.people_alt_outlined, 'color': Colors.blue, 'route': '/admin/students'},
       {'title': '+ Add Student', 'icon': Icons.school_outlined, 'color': Colors.blue, 'route': '/admin/register-student'},
       {'title': '+ Add Admin', 'icon': Icons.admin_panel_settings_outlined, 'color': Colors.redAccent, 'route': '/admin/register-admin'},
-      {'title': 'Teachers', 'icon': Icons.assignment_ind_outlined, 'color': Colors.purple, 'route': '/admin/register-teacher'},
+      {'title': 'Teachers', 'icon': Icons.assignment_ind_outlined, 'color': Colors.purple, 'route': '/admin/teachers'},
+      {'title': '+ Add Teacher', 'icon': Icons.person_add_alt_1_rounded, 'color': Colors.purple, 'route': '/admin/register-teacher'},
       {'title': 'Batches', 'icon': Icons.grid_view_rounded, 'color': Colors.orange, 'route': '/admin/batches'},
       {'title': 'Courses', 'icon': Icons.book_outlined, 'color': Colors.teal, 'route': '/admin/courses'},
       {'title': 'Fees', 'icon': Icons.monetization_on_outlined, 'color': Colors.green, 'route': '/admin/fees'},
@@ -75,7 +76,9 @@ class ManagementTab extends StatelessWidget {
         if (mod['route'] == '/admin/register-student' ||
             mod['route'] == '/admin/register-admin' ||
             mod['route'] == '/admin/students' ||
-            mod['route'] == '/admin/batches') {
+            mod['route'] == '/admin/batches' ||
+            mod['route'] == '/admin/teachers' ||
+            mod['route'] == '/admin/register-teacher') {
           context.push(mod['route'] as String);
         } else {
           // Fallback feedback for features in planning / subsequent phases
