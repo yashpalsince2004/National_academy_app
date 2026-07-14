@@ -37,11 +37,7 @@ class _AttendanceTabState extends State<AttendanceTab> {
         children: [
           Text(
             'Attendance Center',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: -0.5,
-            ),
+            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, letterSpacing: -0.5),
           ),
           const SizedBox(height: 16),
 

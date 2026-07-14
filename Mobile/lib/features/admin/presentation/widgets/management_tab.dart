@@ -33,17 +33,13 @@ class ManagementTab extends StatelessWidget {
         children: [
           Text(
             'Management Hub',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: -0.5,
-            ),
+            style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, letterSpacing: -0.5),
           ),
           const SizedBox(height: 6),
           Text(
             'Admin modules and database settings control.',
             style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.white70,
+                  color: isDark ? AppColors.textSecondaryDark : AppColors.textSecondary,
                 ),
           ),
           const SizedBox(height: 24),

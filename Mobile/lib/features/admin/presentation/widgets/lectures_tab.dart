@@ -32,15 +32,11 @@ class _LecturesTabState extends State<LecturesTab> {
             children: [
               Text(
                 'Lecture Schedules',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: -0.5,
-                ),
+                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, letterSpacing: -0.5),
               ),
               IconButton(
                 icon: const Icon(Icons.add_box_rounded),
-                color: Colors.white,
+                color: theme.colorScheme.primary,
                 onPressed: () => _showScheduleDialog(context),
               )
             ],
@@ -50,10 +46,7 @@ class _LecturesTabState extends State<LecturesTab> {
           // Daily Timeline
           Text(
             'Today\'s Sessions',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.white70,
-            ),
+            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
 
