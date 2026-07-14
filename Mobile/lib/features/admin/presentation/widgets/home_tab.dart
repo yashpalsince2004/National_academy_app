@@ -353,6 +353,65 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     return months[(month - 1).clamp(0, 11)];
   }
 
+  int? _parseTimeToMinutes(String timeStr) {
+    timeStr = timeStr.trim().toUpperCase();
+    if (timeStr.isEmpty) return null;
+
+    final isPm = timeStr.contains('PM');
+    final isAm = timeStr.contains('AM');
+
+    var cleanStr = timeStr.replaceAll(RegExp(r'[AP]M'), '').trim();
+    
+    final parts = cleanStr.split(':');
+    if (parts.isEmpty) return null;
+
+    try {
+      var hour = int.parse(parts[0]);
+      var minute = parts.length > 1 ? int.parse(parts[1]) : 0;
+
+      if (isPm && hour < 12) hour += 12;
+      if (isAm && hour == 12) hour = 0;
+
+      return hour * 60 + minute;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _isSameDay(DateTime d1, String dateStr) {
+    final now = DateTime.now();
+    if (dateStr.toLowerCase().trim() == 'today') {
+      return d1.year == now.year && d1.month == now.month && d1.day == now.day;
+    }
+    if (dateStr.toLowerCase().trim() == 'tomorrow') {
+      final tom = now.add(const Duration(days: 1));
+      return d1.year == tom.year && d1.month == tom.month && d1.day == tom.day;
+    }
+    try {
+      final d2 = DateTime.parse(dateStr);
+      return d1.year == d2.year && d1.month == d2.month && d1.day == d2.day;
+    } catch (_) {
+      final clean = dateStr.replaceAll(',', '').toLowerCase();
+      final parts = clean.split(' ').where((p) => p.isNotEmpty).toList();
+      if (parts.length >= 3) {
+        final monthStr = parts[0];
+        final dayVal = int.tryParse(parts[1]);
+        final yearVal = int.tryParse(parts[2]);
+
+        const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+        const shortMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+        
+        var m = months.indexOf(monthStr) + 1;
+        if (m == 0) m = shortMonths.indexOf(monthStr) + 1;
+
+        if (dayVal != null && yearVal != null && m > 0) {
+          return d1.year == yearVal && d1.month == m && d1.day == dayVal;
+        }
+      }
+    }
+    return false;
+  }
+
   void _showScheduleLectureDialog(
       BuildContext context, String batchId) {
     // Force a reload of the batch details to get fresh teacher/subject data
@@ -607,6 +666,30 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                               content: Text('Please select a lecture date')));
                           return;
                         }
+
+                        // Check conflict with mock scheduled test
+                        if (_mockScheduledTest != null) {
+                          final testDateStr = _mockScheduledTest!['date'] ?? '';
+                          final testTimeStr = _mockScheduledTest!['time'] ?? '';
+                          final testSub = _mockScheduledTest!['subject'] ?? 'Test';
+                          
+                          if (_isSameDay(selectedDate!, testDateStr)) {
+                            final lecStart = _parseTimeToMinutes(startTimeController.text.trim());
+                            final lecEnd = _parseTimeToMinutes(endTimeController.text.trim());
+                            final testStart = _parseTimeToMinutes(testTimeStr);
+                            final testEnd = testStart != null ? testStart + 90 : null; // Assume 1.5 hr duration
+                            
+                            if (lecStart != null && lecEnd != null && testStart != null && testEnd != null) {
+                              if (lecStart < testEnd && lecEnd > testStart) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                    content: Text(
+                                        'Time Conflict: This slot overlaps with a scheduled mock test ($testSub: $testTimeStr).')));
+                                return;
+                              }
+                            }
+                          }
+                        }
+
                         try {
                           await ref
                               .read(

@@ -302,7 +302,9 @@ class SupabaseBatchRepositoryImpl implements BatchRepository {
       final res = await supabaseClient
           .from('timetable')
           .select('*, subjects(name), profiles:teacher_id(full_name)')
-          .eq('batch_id', batchId);
+          .eq('batch_id', batchId)
+          .order('lecture_date', ascending: true)
+          .order('start_time', ascending: true);
 
       const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -405,6 +407,44 @@ class SupabaseBatchRepositoryImpl implements BatchRepository {
         throw AuthException('Invalid Subject or Teacher specified. subId: $subId (subjectName: ${lecture.subjectName}), teachId: $teachId (teacherName: ${lecture.teacherName}), courseId: $courseId');
       }
 
+      final newStart = _parseTimeToMinutes(lecture.startTime);
+      final newEnd = _parseTimeToMinutes(lecture.endTime);
+
+      if (newStart == null || newEnd == null) {
+        throw AuthException('Invalid start time or end time format.');
+      }
+      if (newEnd <= newStart) {
+        throw AuthException('End time must be after start time.');
+      }
+
+      // Check for overlapping lectures in the database
+      if (lecture.lectureDate != null && lecture.lectureDate!.isNotEmpty) {
+        final existingLectures = await supabaseClient
+            .from('timetable')
+            .select('start_time, end_time, subjects(name)')
+            .eq('batch_id', lecture.batchId)
+            .eq('lecture_date', lecture.lectureDate!);
+
+        if ((existingLectures as List).isNotEmpty) {
+          for (final row in existingLectures) {
+            final startStr = row['start_time'] as String? ?? '';
+            final endStr = row['end_time'] as String? ?? '';
+            final subMap = row['subjects'] as Map<String, dynamic>?;
+            final subName = subMap != null ? subMap['name'] as String? ?? 'Lecture' : 'Lecture';
+
+            final start = _parseTimeToMinutes(startStr);
+            final end = _parseTimeToMinutes(endStr);
+
+            if (start != null && end != null) {
+              if (start < newEnd && end > newStart) {
+                throw AuthException(
+                    'Time Conflict: This slot overlaps with an existing scheduled lecture ($subName: $startStr - $endStr).');
+              }
+            }
+          }
+        }
+      }
+
       const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       final dayInt = weekdays.indexOf(lecture.dayOfWeek);
       final dayToSend = dayInt == -1 ? 0 : dayInt;
@@ -457,6 +497,31 @@ class SupabaseBatchRepositoryImpl implements BatchRepository {
         {'name': 'Pranav Desai', 'score': '48%'}
       ],
     };
+  }
+
+  int? _parseTimeToMinutes(String timeStr) {
+    timeStr = timeStr.trim().toUpperCase();
+    if (timeStr.isEmpty) return null;
+
+    final isPm = timeStr.contains('PM');
+    final isAm = timeStr.contains('AM');
+
+    var cleanStr = timeStr.replaceAll(RegExp(r'[AP]M'), '').trim();
+    
+    final parts = cleanStr.split(':');
+    if (parts.isEmpty) return null;
+
+    try {
+      var hour = int.parse(parts[0]);
+      var minute = parts.length > 1 ? int.parse(parts[1]) : 0;
+
+      if (isPm && hour < 12) hour += 12;
+      if (isAm && hour == 12) hour = 0;
+
+      return hour * 60 + minute;
+    } catch (_) {
+      return null;
+    }
   }
 }
 
