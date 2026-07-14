@@ -90,7 +90,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                         accentColor: AppColors.primary,
                         isDark: isDark,
                         onTap: () => _showScheduleLectureDialog(
-                            context, _selectedBatchId!, batchDetails),
+                            context, _selectedBatchId!),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -334,7 +334,6 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     return days[(weekday - 1).clamp(0, 6)];
   }
-
   /// Converts a month number (1–12) to an abbreviated month name.
   String _monthName(int month) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -343,7 +342,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   }
 
   void _showScheduleLectureDialog(
-      BuildContext context, String batchId, BatchDetailState details) {
+      BuildContext context, String batchId) {
+    // Force a reload of the batch details to get fresh teacher/subject data
+    ref.read(batchDetailControllerProvider(batchId).notifier).loadAllDetails();
+
     final roomController = TextEditingController(text: 'Room 101');
     final startTimeController = TextEditingController(text: '09:00 AM');
     final endTimeController = TextEditingController(text: '10:30 AM');
@@ -355,287 +357,276 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     showDialog(
       context: context,
       builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            final isDark = Theme.of(context).brightness == Brightness.dark;
+        return Consumer(
+          builder: (context, ref, child) {
+            final details = ref.watch(batchDetailControllerProvider(batchId));
 
-            // Generate list of subject options dynamically from the teachers list
-            final subjectOptions = {'Physics', 'Chemistry', 'Mathematics', 'Biology', 'Other'};
-             for (final t in details.teachers) {
-              final s = t['subject'] as String?;
-              if (s != null && s.isNotEmpty) {
-                final subs = s.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty);
-                for (final sub in subs) {
-                  if (sub.toLowerCase() == 'maths' || sub.toLowerCase() == 'mathematics') {
-                    subjectOptions.add('Mathematics');
-                  } else {
-                    subjectOptions.add(sub[0].toUpperCase() + sub.substring(1).toLowerCase());
+            return StatefulBuilder(
+              builder: (context, setState) {
+                final isDark = Theme.of(context).brightness == Brightness.dark;
+
+                // Generate list of subject options dynamically from the teachers list
+                final subjectOptions = {'Physics', 'Chemistry', 'Mathematics', 'Biology', 'Other'};
+                 for (final t in details.teachers) {
+                  final s = t['subject'] as String?;
+                  if (s != null && s.isNotEmpty) {
+                    final subs = s.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty);
+                    for (final sub in subs) {
+                      if (sub.toLowerCase() == 'maths' || sub.toLowerCase() == 'mathematics') {
+                        subjectOptions.add('Mathematics');
+                      } else {
+                        subjectOptions.add(sub[0].toUpperCase() + sub.substring(1).toLowerCase());
+                      }
+                    }
                   }
                 }
-              }
-            }
-            final subjectList = subjectOptions.toList();
+                final subjectList = subjectOptions.toList();
 
-            final subjectItems = [
-              AppDropdownItem(value: '', label: 'Select Subject'),
-              ...subjectList.map((s) => AppDropdownItem(value: s, label: s)),
-            ];
+                final subjectItems = [
+                  AppDropdownItem(value: '', label: 'Select Subject'),
+                  ...subjectList.map((s) => AppDropdownItem(value: s, label: s)),
+                ];
 
-            // Filter teachers based on selected subject
-            final filteredTeachers = details.teachers.where((t) {
-              if (selectedSubject.isEmpty) return false;
-              final teacherSubjects = (t['subject'] as String? ?? '')
-                  .toLowerCase()
-                  .split(',')
-                  .map((s) => s.trim())
-                  .toList();
-              final selSub = selectedSubject.toLowerCase();
-              if (selSub == 'maths' || selSub == 'mathematics') {
-                return teacherSubjects.contains('maths') || teacherSubjects.contains('mathematics');
-              }
-              return teacherSubjects.contains(selSub);
-            }).toList();
+                // Filter teachers based on selected subject
+                final filteredTeachers = details.teachers.where((t) {
+                  if (selectedSubject.isEmpty) return false;
+                  final teacherSubjects = (t['subject'] as String? ?? '')
+                      .toLowerCase()
+                      .split(',')
+                      .map((s) => s.trim())
+                      .toList();
+                  final selSub = selectedSubject.toLowerCase();
+                  if (selSub == 'maths' || selSub == 'mathematics') {
+                    return teacherSubjects.contains('maths') || teacherSubjects.contains('mathematics');
+                  }
+                  return teacherSubjects.contains(selSub);
+                }).toList();
 
-            // If the selected teacher is no longer in the filtered list, reset it
-            if (selectedTeacherName.isNotEmpty &&
-                !filteredTeachers.any((t) => (t['full_name'] as String? ?? '') == selectedTeacherName)) {
-              selectedTeacherName = '';
-            }
+                // If the selected teacher is no longer in the filtered list, reset it
+                if (selectedTeacherName.isNotEmpty &&
+                    !filteredTeachers.any((t) => (t['full_name'] as String? ?? '') == selectedTeacherName)) {
+                  selectedTeacherName = '';
+                }
 
-            final List<AppDropdownItem<String>> teacherItems;
-            if (selectedSubject.isEmpty) {
-              teacherItems = [
-                AppDropdownItem(value: '', label: 'Choose Subject First'),
-              ];
-            } else if (filteredTeachers.isEmpty) {
-              teacherItems = [
-                AppDropdownItem(value: '', label: 'No Teachers Found'),
-              ];
-            } else {
-              teacherItems = [
-                AppDropdownItem(value: '', label: 'Select Teacher'),
-                ...filteredTeachers.map((t) {
-                  final name = t['full_name'] as String? ?? 'Unknown';
-                  return AppDropdownItem(value: name, label: name);
-                }),
-              ];
-            }
+                final List<AppDropdownItem<String>> teacherItems;
+                if (selectedSubject.isEmpty) {
+                  teacherItems = [
+                    AppDropdownItem(value: '', label: 'Choose Subject First'),
+                  ];
+                } else if (filteredTeachers.isEmpty) {
+                  teacherItems = [
+                    AppDropdownItem(value: '', label: 'No Teachers Found'),
+                  ];
+                } else {
+                  teacherItems = [
+                    AppDropdownItem(value: '', label: 'Select Teacher'),
+                    ...filteredTeachers.map((t) {
+                      final name = t['full_name'] as String? ?? 'Unknown';
+                      return AppDropdownItem(value: name, label: name);
+                    }),
+                  ];
+                }
 
-            return AlertDialog(
-              backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18)),
-              title: Text(
-                'Schedule Lecture',
-                style: TextStyle(
-                    color: isDark ? Colors.white : AppColors.ink,
-                    fontWeight: FontWeight.bold),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Subject Dropdown
-                    AppDropdown<String>(
-                      value: selectedSubject,
-                      hintText: 'Select Subject',
-                      items: subjectItems,
-                      onChanged: (val) {
-                        setState(() {
-                          selectedSubject = val;
-                          selectedTeacherName = ''; // Reset teacher on subject change
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Teacher Dropdown
-                    AppDropdown<String>(
-                      value: selectedTeacherName,
-                      hintText: selectedSubject.isEmpty 
-                          ? 'Choose Subject First' 
-                          : filteredTeachers.isEmpty
-                              ? 'No Teachers Found'
-                              : 'Select Teacher',
-                      items: teacherItems,
-                      onChanged: selectedSubject.isEmpty || filteredTeachers.isEmpty
-                          ? (_) {}
-                          : (val) {
-                              setState(() {
-                                selectedTeacherName = val;
-                              });
-                            },
-                    ),
-                    const SizedBox(height: 12),
-
-                    TextField(
-                      controller: roomController,
-                      decoration:
-                          const InputDecoration(labelText: 'Room Number'),
-                      style: TextStyle(
-                          color: isDark ? Colors.white : AppColors.ink),
-                    ),
-                    const SizedBox(height: 12),
-                    // Date Picker Field
-                    GestureDetector(
-                      onTap: () async {
-                        final now = DateTime.now();
-                        final tomorrow = now.add(const Duration(days: 1));
-                        final picked = await showDatePicker(
-                          context: context,
-                          initialDate: tomorrow,
-                          firstDate: tomorrow,
-                          lastDate: now.add(const Duration(days: 365)),
-                          helpText: 'Select Lecture Date',
-                          builder: (context, child) {
-                            return Theme(
-                              data: Theme.of(context).copyWith(
-                                colorScheme: ColorScheme.light(
-                                  primary: AppColors.primary,
-                                  onPrimary: Colors.white,
-                                  surface: isDark ? AppColors.surfaceTile1 : Colors.white,
-                                  onSurface: isDark ? Colors.white : AppColors.ink,
-                                ),
-                              ),
-                              child: child!,
-                            );
-                          },
-                        );
-                        if (picked != null) {
-                          setState(() => selectedDate = picked);
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: isDark ? Colors.white10 : const Color(0xFFF5F5F5),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: selectedDate == null
-                                ? Colors.grey.withValues(alpha: 0.3)
-                                : AppColors.primary.withValues(alpha: 0.6),
-                            width: 1.2,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_today_rounded,
-                              size: 18,
-                              color: selectedDate == null
-                                  ? Colors.grey
-                                  : AppColors.primary,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                selectedDate == null
-                                    ? 'Select Date'
-                                    : '${_dayName(selectedDate!.weekday)}, '
-                                      '${selectedDate!.day} '
-                                      '${_monthName(selectedDate!.month)} '
-                                      '${selectedDate!.year}',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: selectedDate == null
-                                      ? Colors.grey
-                                      : (isDark ? Colors.white : AppColors.ink),
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_drop_down_rounded,
-                              color: Colors.grey.withValues(alpha: 0.7),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
+                return AlertDialog(
+                  backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18)),
+                  title: Text(
+                    'Schedule Lecture',
+                    style: TextStyle(
+                        color: isDark ? Colors.white : AppColors.ink,
+                        fontWeight: FontWeight.bold),
+                  ),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: TextField(
-                            controller: startTimeController,
-                            decoration: const InputDecoration(
-                                labelText: 'Start Time'),
-                            style: TextStyle(
-                                color: isDark ? Colors.white : AppColors.ink),
+                        // Subject Dropdown
+                        AppDropdown<String>(
+                          value: selectedSubject,
+                          hintText: 'Select Subject',
+                          items: subjectItems,
+                          onChanged: (val) {
+                            setState(() {
+                              selectedSubject = val;
+                              selectedTeacherName = ''; // Reset teacher on subject change
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Teacher Dropdown
+                        AppDropdown<String>(
+                          value: selectedTeacherName,
+                          hintText: selectedSubject.isEmpty 
+                              ? 'Choose Subject First' 
+                              : filteredTeachers.isEmpty
+                                  ? 'No Teachers Found'
+                                  : 'Select Teacher',
+                          items: teacherItems,
+                          onChanged: selectedSubject.isEmpty || filteredTeachers.isEmpty
+                              ? (_) {}
+                              : (val) {
+                                  setState(() {
+                                    selectedTeacherName = val;
+                                  });
+                                },
+                        ),
+                        const SizedBox(height: 12),
+
+                        TextField(
+                          controller: roomController,
+                          decoration:
+                              const InputDecoration(labelText: 'Room Number'),
+                          style: TextStyle(
+                              color: isDark ? Colors.white : AppColors.ink),
+                        ),
+                        const SizedBox(height: 12),
+                        // Date Picker Field
+                        GestureDetector(
+                          onTap: () async {
+                            final now = DateTime.now();
+                            final tomorrow = now.add(const Duration(days: 1));
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: tomorrow,
+                              firstDate: tomorrow,
+                              lastDate: now.add(const Duration(days: 365)),
+                              helpText: 'Select Lecture Date',
+                              builder: (context, child) {
+                                return Theme(
+                                  data: Theme.of(context).copyWith(
+                                    colorScheme: ColorScheme.light(
+                                      primary: AppColors.primary,
+                                      onPrimary: Colors.white,
+                                      surface: isDark ? AppColors.surfaceTile1 : Colors.white,
+                                      onSurface: isDark ? Colors.white : AppColors.ink,
+                                    ),
+                                  ),
+                                  child: child!,
+                                );
+                              },
+                            );
+                            if (picked != null) {
+                              setState(() => selectedDate = picked);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 15),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                  color: isDark
+                                      ? Colors.white24
+                                      : Colors.black26),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  selectedDate == null
+                                      ? 'Select Date'
+                                      : '${_dayName(selectedDate!.weekday)}, ${selectedDate!.day} ${_monthName(selectedDate!.month)} ${selectedDate!.year}',
+                                  style: TextStyle(
+                                      color: selectedDate == null
+                                          ? (isDark
+                                              ? Colors.white54
+                                              : Colors.black54)
+                                          : (isDark
+                                              ? Colors.white
+                                              : AppColors.ink)),
+                                ),
+                                Icon(Icons.calendar_today,
+                                    color: isDark
+                                        ? Colors.white70
+                                        : AppColors.ink),
+                              ],
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: endTimeController,
-                            decoration:
-                                const InputDecoration(labelText: 'End Time'),
-                            style: TextStyle(
-                                color: isDark ? Colors.white : AppColors.ink),
-                          ),
+                        const SizedBox(height: 12),
+
+                        TextField(
+                          controller: startTimeController,
+                          decoration:
+                              const InputDecoration(labelText: 'Start Time'),
+                          style: TextStyle(
+                              color: isDark ? Colors.white : AppColors.ink),
+                        ),
+                        const SizedBox(height: 12),
+
+                        TextField(
+                          controller: endTimeController,
+                          decoration:
+                              const InputDecoration(labelText: 'End Time'),
+                          style: TextStyle(
+                              color: isDark ? Colors.white : AppColors.ink),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel',
-                      style: TextStyle(color: AppColors.textSecondary)),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    elevation: 0,
                   ),
-                  onPressed: () async {
-                    if (selectedSubject.isEmpty || selectedTeacherName.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text(
-                              'Please select Subject and Teacher')));
-                      return;
-                    }
-                    if (selectedDate == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Please select a lecture date')));
-                      return;
-                    }
-                    try {
-                      await ref
-                          .read(
-                              batchDetailControllerProvider(batchId).notifier)
-                          .addLecture(
-                            subjectName: selectedSubject,
-                            teacherName: selectedTeacherName,
-                            room: roomController.text.trim(),
-                            dayOfWeek: _dayName(selectedDate!.weekday),
-                            startTime: startTimeController.text.trim(),
-                            endTime: endTimeController.text.trim(),
-                            lectureDate: selectedDate != null
-                                ? '${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}'
-                                : null,
-                          );
-                      if (!context.mounted) return;
-                      Navigator.pop(dialogContext);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Lecture scheduled successfully!')));
-                    } catch (e) {
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content:
-                                  Text('Error scheduling lecture: $e')));
-                    }
-                  },
-                  child: const Text('Schedule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
-              ],
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Cancel',
+                          style: TextStyle(color: AppColors.textSecondary)),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: () async {
+                        if (selectedSubject.isEmpty || selectedTeacherName.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                              content: Text(
+                                  'Please select Subject and Teacher')));
+                          return;
+                        }
+                        if (selectedDate == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                              content: Text('Please select a lecture date')));
+                          return;
+                        }
+                        try {
+                          await ref
+                              .read(
+                                  batchDetailControllerProvider(batchId).notifier)
+                              .addLecture(
+                                subjectName: selectedSubject,
+                                teacherName: selectedTeacherName,
+                                room: roomController.text.trim(),
+                                dayOfWeek: _dayName(selectedDate!.weekday),
+                                startTime: startTimeController.text.trim(),
+                                endTime: endTimeController.text.trim(),
+                                lectureDate: selectedDate != null
+                                    ? '${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}'
+                                    : null,
+                              );
+                          if (!context.mounted) return;
+                          Navigator.pop(dialogContext);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                              content: Text('Lecture scheduled successfully!')));
+                        } catch (e) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content:
+                                      Text('Error scheduling lecture: $e')));
+                        }
+                      },
+                      child: const Text('Schedule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );
