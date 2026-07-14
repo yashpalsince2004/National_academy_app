@@ -21,12 +21,23 @@ class GridBackground extends StatelessWidget {
         ? Colors.white.withValues(alpha: 0.015)
         : AppColors.primary.withValues(alpha: 0.035);
 
-    return CustomPaint(
-      painter: _GridPainter(
-        gridColor: gridColor,
-        spacing: spacing,
+    return Container(
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image: const AssetImage('assets/Background.jpg'),
+          fit: BoxFit.cover,
+          colorFilter: isDark
+              ? ColorFilter.mode(Colors.black.withValues(alpha: 0.65), BlendMode.darken)
+              : null,
+        ),
       ),
-      child: child,
+      child: CustomPaint(
+        painter: _GridPainter(
+          gridColor: gridColor,
+          spacing: spacing,
+        ),
+        child: child,
+      ),
     );
   }
 }

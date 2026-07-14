@@ -104,6 +104,7 @@ flutter:
     - .env
     - assets/images/logo.png
     - assets/images/playstore.png
+    - assets/Background.jpg
 
   # To add assets to your application, add an assets section, like this:
   # assets:
