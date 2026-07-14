@@ -334,8 +334,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     final startTimeController = TextEditingController(text: '09:00 AM');
     final endTimeController = TextEditingController(text: '10:30 AM');
 
-    String? selectedSubject;
-    String? selectedTeacherName;
+    String selectedSubject = '';
+    String selectedTeacherName = '';
 
     showDialog(
       context: context,
@@ -358,11 +358,16 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             }
             final subjectList = subjectOptions.toList();
 
+            final subjectItems = [
+              AppDropdownItem(value: '', label: 'Select Subject'),
+              ...subjectList.map((s) => AppDropdownItem(value: s, label: s)),
+            ];
+
             // Filter teachers based on selected subject
             final filteredTeachers = details.teachers.where((t) {
-              if (selectedSubject == null) return false;
+              if (selectedSubject.isEmpty) return false;
               final teacherSubject = (t['subject'] as String? ?? '').toLowerCase();
-              final selSub = selectedSubject!.toLowerCase();
+              final selSub = selectedSubject.toLowerCase();
               if (selSub == 'maths' || selSub == 'mathematics') {
                 return teacherSubject == 'maths' || teacherSubject == 'mathematics';
               }
@@ -370,9 +375,28 @@ class _HomeTabState extends ConsumerState<HomeTab> {
             }).toList();
 
             // If the selected teacher is no longer in the filtered list, reset it
-            if (selectedTeacherName != null &&
-                !filteredTeachers.any((t) => t['full_name'] == selectedTeacherName)) {
-              selectedTeacherName = null;
+            if (selectedTeacherName.isNotEmpty &&
+                !filteredTeachers.any((t) => (t['full_name'] as String? ?? '') == selectedTeacherName)) {
+              selectedTeacherName = '';
+            }
+
+            final List<AppDropdownItem<String>> teacherItems;
+            if (selectedSubject.isEmpty) {
+              teacherItems = [
+                AppDropdownItem(value: '', label: 'Choose Subject First'),
+              ];
+            } else if (filteredTeachers.isEmpty) {
+              teacherItems = [
+                AppDropdownItem(value: '', label: 'No Teachers Found'),
+              ];
+            } else {
+              teacherItems = [
+                AppDropdownItem(value: '', label: 'Select Teacher'),
+                ...filteredTeachers.map((t) {
+                  final name = t['full_name'] as String? ?? 'Unknown';
+                  return AppDropdownItem(value: name, label: name);
+                }),
+              ];
             }
 
             return AlertDialog(
@@ -392,15 +416,12 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     // Subject Dropdown
                     AppDropdown<String>(
                       value: selectedSubject,
-                      hint: 'Select Subject',
-                      items: subjectList.map((s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s),
-                      )).toList(),
+                      hintText: 'Select Subject',
+                      items: subjectItems,
                       onChanged: (val) {
                         setState(() {
                           selectedSubject = val;
-                          selectedTeacherName = null; // Reset teacher on subject change
+                          selectedTeacherName = ''; // Reset teacher on subject change
                         });
                       },
                     ),
@@ -409,20 +430,14 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     // Teacher Dropdown
                     AppDropdown<String>(
                       value: selectedTeacherName,
-                      hint: selectedSubject == null 
+                      hintText: selectedSubject.isEmpty 
                           ? 'Choose Subject First' 
                           : filteredTeachers.isEmpty
                               ? 'No Teachers Found'
                               : 'Select Teacher',
-                      items: filteredTeachers.map((t) {
-                        final name = t['full_name'] as String? ?? 'Unknown';
-                        return DropdownMenuItem(
-                          value: name,
-                          child: Text(name),
-                        );
-                      }).toList(),
-                      onChanged: selectedSubject == null || filteredTeachers.isEmpty
-                          ? null
+                      items: teacherItems,
+                      onChanged: selectedSubject.isEmpty || filteredTeachers.isEmpty
+                          ? (_) {}
                           : (val) {
                               setState(() {
                                 selectedTeacherName = val;
@@ -481,7 +496,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 ),
                 TactileButton(
                   onTap: () async {
-                    if (selectedSubject == null || selectedTeacherName == null) {
+                    if (selectedSubject.isEmpty || selectedTeacherName.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                           content: Text(
                               'Please select Subject and Teacher')));
@@ -492,8 +507,8 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           .read(
                               batchDetailControllerProvider(batchId).notifier)
                           .addLecture(
-                            subjectName: selectedSubject!,
-                            teacherName: selectedTeacherName!,
+                            subjectName: selectedSubject,
+                            teacherName: selectedTeacherName,
                             room: roomController.text.trim(),
                             dayOfWeek: dayController.text.trim(),
                             startTime: startTimeController.text.trim(),
