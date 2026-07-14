@@ -27,6 +27,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   String _lectureEndTime = '10:30 AM';
   String _lectureDayOfWeek = 'Monday';
   String _lectureRoom = 'Room 101';
+  String? _lectureDate = '2026-07-16';
 
   @override
   Widget build(BuildContext context) {
@@ -152,6 +153,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               endTime: lecture.endTime,
               dayOfWeek: lecture.dayOfWeek,
               room: lecture.room,
+              lectureDate: lecture.lectureDate,
               onEdit: () => _showEditLectureDialog(
                 context,
                 batchId: _selectedBatchId,
@@ -178,6 +180,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       endTime: _lectureEndTime,
       dayOfWeek: _lectureDayOfWeek,
       room: _lectureRoom,
+      lectureDate: _lectureDate,
       isPlaceholder: true,
       onEdit: () => _showEditLectureDialog(
         context,
@@ -1592,6 +1595,7 @@ class _UpcomingLectureCard extends StatelessWidget {
     required this.endTime,
     required this.dayOfWeek,
     required this.room,
+    this.lectureDate,
     this.isPlaceholder = false,
     this.onEdit,
   });
@@ -1604,8 +1608,27 @@ class _UpcomingLectureCard extends StatelessWidget {
   final String endTime;
   final String dayOfWeek;
   final String room;
+  final String? lectureDate;
   final bool isPlaceholder;
   final VoidCallback? onEdit;
+
+  String _formatLectureDate(String dateStr) {
+    try {
+      final parsed = DateTime.tryParse(dateStr);
+      if (parsed != null) {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return '${parsed.day} ${months[parsed.month - 1]} ${parsed.year}';
+      }
+    } catch (_) {}
+    return dateStr;
+  }
+
+  String get displayDateOrDay {
+    if (lectureDate != null && lectureDate!.isNotEmpty) {
+      return _formatLectureDate(lectureDate!);
+    }
+    return dayOfWeek;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1751,9 +1774,9 @@ class _UpcomingLectureCard extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _InfoChip(
-                          icon: Icons.today_rounded,
-                          label: 'Day',
-                          value: dayOfWeek,
+                          icon: Icons.calendar_today_rounded,
+                          label: 'Date',
+                          value: displayDateOrDay,
                           isDark: isDark),
                     ),
                   ],
