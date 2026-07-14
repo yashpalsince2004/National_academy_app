@@ -897,11 +897,10 @@ class _GreetingSection extends StatelessWidget {
                 children: [
                   Text(
                     '${_greeting()}, ',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w400,
-                      color:
-                          isDark ? Colors.white60 : AppColors.textSecondary,
+                      color: Colors.white70,
                       letterSpacing: -0.3,
                     ),
                   ),
@@ -909,12 +908,12 @@ class _GreetingSection extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 2),
-              Text(
+              const Text(
                 'Yash Sir',
                 style: TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.w700,
-                  color: isDark ? Colors.white : AppColors.ink,
+                  color: Colors.white,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -925,11 +924,11 @@ class _GreetingSection extends StatelessWidget {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.10),
+            color: Colors.white.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(Icons.notifications_none_rounded,
-              color: AppColors.primary, size: 22),
+              color: Colors.white, size: 22),
         ),
       ],
     );
