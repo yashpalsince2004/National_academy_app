@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/tactile_button.dart';
+import '../../../../core/widgets/app_dropdown.dart';
 import '../../../batches/presentation/controllers/batch_controller.dart';
 import '../../../batches/presentation/controllers/batch_detail_controller.dart';
 import '../../../batches/data/models/batch_model.dart';
@@ -328,135 +329,196 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
   void _showScheduleLectureDialog(
       BuildContext context, String batchId, BatchDetailState details) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final subjectController = TextEditingController();
-    final teacherController = TextEditingController();
     final roomController = TextEditingController(text: 'Room 101');
     final dayController = TextEditingController(text: 'Monday');
     final startTimeController = TextEditingController(text: '09:00 AM');
     final endTimeController = TextEditingController(text: '10:30 AM');
 
+    String? selectedSubject;
+    String? selectedTeacherName;
+
     showDialog(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18)),
-          title: Text(
-            'Schedule Lecture',
-            style: TextStyle(
-                color: isDark ? Colors.white : AppColors.ink,
-                fontWeight: FontWeight.bold),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: subjectController,
-                  decoration: const InputDecoration(
-                      labelText: 'Subject Name (e.g. Physics)'),
-                  style: TextStyle(
-                      color: isDark ? Colors.white : AppColors.ink),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: teacherController,
-                  decoration:
-                      const InputDecoration(labelText: 'Teacher Name'),
-                  style: TextStyle(
-                      color: isDark ? Colors.white : AppColors.ink),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: roomController,
-                  decoration:
-                      const InputDecoration(labelText: 'Room Number'),
-                  style: TextStyle(
-                      color: isDark ? Colors.white : AppColors.ink),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: dayController,
-                  decoration:
-                      const InputDecoration(labelText: 'Day of Week'),
-                  style: TextStyle(
-                      color: isDark ? Colors.white : AppColors.ink),
-                ),
-                const SizedBox(height: 12),
-                Row(
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final isDark = Theme.of(context).brightness == Brightness.dark;
+
+            // Generate list of subject options dynamically from the teachers list
+            final subjectOptions = {'Physics', 'Chemistry', 'Mathematics', 'Biology', 'Other'};
+            for (final t in details.teachers) {
+              final s = t['subject'] as String?;
+              if (s != null && s.isNotEmpty) {
+                if (s.toLowerCase() == 'maths' || s.toLowerCase() == 'mathematics') {
+                  subjectOptions.add('Mathematics');
+                } else {
+                  subjectOptions.add(s[0].toUpperCase() + s.substring(1).toLowerCase());
+                }
+              }
+            }
+            final subjectList = subjectOptions.toList();
+
+            // Filter teachers based on selected subject
+            final filteredTeachers = details.teachers.where((t) {
+              if (selectedSubject == null) return false;
+              final teacherSubject = (t['subject'] as String? ?? '').toLowerCase();
+              final selSub = selectedSubject!.toLowerCase();
+              if (selSub == 'maths' || selSub == 'mathematics') {
+                return teacherSubject == 'maths' || teacherSubject == 'mathematics';
+              }
+              return teacherSubject == selSub;
+            }).toList();
+
+            // If the selected teacher is no longer in the filtered list, reset it
+            if (selectedTeacherName != null &&
+                !filteredTeachers.any((t) => t['full_name'] == selectedTeacherName)) {
+              selectedTeacherName = null;
+            }
+
+            return AlertDialog(
+              backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18)),
+              title: Text(
+                'Schedule Lecture',
+                style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.ink,
+                    fontWeight: FontWeight.bold),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: startTimeController,
-                        decoration: const InputDecoration(
-                            labelText: 'Start Time'),
-                        style: TextStyle(
-                            color: isDark ? Colors.white : AppColors.ink),
-                      ),
+                    // Subject Dropdown
+                    AppDropdown<String>(
+                      value: selectedSubject,
+                      hint: 'Select Subject',
+                      items: subjectList.map((s) => DropdownMenuItem(
+                        value: s,
+                        child: Text(s),
+                      )).toList(),
+                      onChanged: (val) {
+                        setState(() {
+                          selectedSubject = val;
+                          selectedTeacherName = null; // Reset teacher on subject change
+                        });
+                      },
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: endTimeController,
-                        decoration:
-                            const InputDecoration(labelText: 'End Time'),
-                        style: TextStyle(
-                            color: isDark ? Colors.white : AppColors.ink),
-                      ),
+                    const SizedBox(height: 12),
+
+                    // Teacher Dropdown
+                    AppDropdown<String>(
+                      value: selectedTeacherName,
+                      hint: selectedSubject == null 
+                          ? 'Choose Subject First' 
+                          : filteredTeachers.isEmpty
+                              ? 'No Teachers Found'
+                              : 'Select Teacher',
+                      items: filteredTeachers.map((t) {
+                        final name = t['full_name'] as String? ?? 'Unknown';
+                        return DropdownMenuItem(
+                          value: name,
+                          child: Text(name),
+                        );
+                      }).toList(),
+                      onChanged: selectedSubject == null || filteredTeachers.isEmpty
+                          ? null
+                          : (val) {
+                              setState(() {
+                                selectedTeacherName = val;
+                              });
+                            },
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextField(
+                      controller: roomController,
+                      decoration:
+                          const InputDecoration(labelText: 'Room Number'),
+                      style: TextStyle(
+                          color: isDark ? Colors.white : AppColors.ink),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: dayController,
+                      decoration:
+                          const InputDecoration(labelText: 'Day of Week'),
+                      style: TextStyle(
+                          color: isDark ? Colors.white : AppColors.ink),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: startTimeController,
+                            decoration: const InputDecoration(
+                                labelText: 'Start Time'),
+                            style: TextStyle(
+                                color: isDark ? Colors.white : AppColors.ink),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: endTimeController,
+                            decoration:
+                                const InputDecoration(labelText: 'End Time'),
+                            style: TextStyle(
+                                color: isDark ? Colors.white : AppColors.ink),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel',
-                  style: TextStyle(color: AppColors.textSecondary)),
-            ),
-            TactileButton(
-              onTap: () async {
-                if (subjectController.text.trim().isEmpty ||
-                    teacherController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text(
-                          'Please fill out Subject and Teacher fields')));
-                  return;
-                }
-                try {
-                  await ref
-                      .read(
-                          batchDetailControllerProvider(batchId).notifier)
-                      .addLecture(
-                        subjectName: subjectController.text.trim(),
-                        teacherName: teacherController.text.trim(),
-                        room: roomController.text.trim(),
-                        dayOfWeek: dayController.text.trim(),
-                        startTime: startTimeController.text.trim(),
-                        endTime: endTimeController.text.trim(),
-                      );
-                  if (!context.mounted) return;
-                  Navigator.pop(dialogContext);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Lecture scheduled successfully!')));
-                } catch (e) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content:
-                              Text('Error scheduling lecture: $e')));
-                }
-              },
-              child: ElevatedButton(
-                onPressed: () {},
-                child: const Text('Schedule'),
               ),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: AppColors.textSecondary)),
+                ),
+                TactileButton(
+                  onTap: () async {
+                    if (selectedSubject == null || selectedTeacherName == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text(
+                              'Please select Subject and Teacher')));
+                      return;
+                    }
+                    try {
+                      await ref
+                          .read(
+                              batchDetailControllerProvider(batchId).notifier)
+                          .addLecture(
+                            subjectName: selectedSubject!,
+                            teacherName: selectedTeacherName!,
+                            room: roomController.text.trim(),
+                            dayOfWeek: dayController.text.trim(),
+                            startTime: startTimeController.text.trim(),
+                            endTime: endTimeController.text.trim(),
+                          );
+                      if (!context.mounted) return;
+                      Navigator.pop(dialogContext);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Lecture scheduled successfully!')));
+                    } catch (e) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content:
+                                  Text('Error scheduling lecture: $e')));
+                    }
+                  },
+                  child: ElevatedButton(
+                    onPressed: () {},
+                    child: const Text('Schedule'),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -897,10 +959,11 @@ class _GreetingSection extends StatelessWidget {
                 children: [
                   Text(
                     '${_greeting()}, ',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w400,
-                      color: Colors.white70,
+                      color:
+                          isDark ? Colors.white60 : AppColors.textSecondary,
                       letterSpacing: -0.3,
                     ),
                   ),
@@ -908,12 +971,12 @@ class _GreetingSection extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 2),
-              const Text(
+              Text(
                 'Yash Sir',
                 style: TextStyle(
                   fontSize: 30,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: isDark ? Colors.white : AppColors.ink,
                   letterSpacing: -0.5,
                 ),
               ),
@@ -924,11 +987,11 @@ class _GreetingSection extends StatelessWidget {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.15),
+            color: AppColors.primary.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(Icons.notifications_none_rounded,
-              color: Colors.white, size: 22),
+              color: AppColors.primary, size: 22),
         ),
       ],
     );
