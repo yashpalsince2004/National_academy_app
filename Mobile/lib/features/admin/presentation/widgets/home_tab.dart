@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/tactile_button.dart';
 import '../../../../core/widgets/app_dropdown.dart';
@@ -25,7 +26,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   String _lectureTeacher = 'Mr. R. Sharma';
   String _lectureStartTime = '09:00 AM';
   String _lectureEndTime = '10:30 AM';
-  String _lectureDayOfWeek = 'Monday';
+  final String _lectureDayOfWeek = 'Monday';
   String _lectureRoom = 'Room 101';
   String? _lectureDate = '2026-07-16';
 
@@ -162,7 +163,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 teacher: lecture.teacherName,
                 startTime: lecture.startTime,
                 endTime: lecture.endTime,
-                dayOfWeek: lecture.dayOfWeek,
+                lectureDate: lecture.lectureDate,
                 room: lecture.room,
               ),
             ),
@@ -190,7 +191,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         teacher: _lectureTeacher,
         startTime: _lectureStartTime,
         endTime: _lectureEndTime,
-        dayOfWeek: _lectureDayOfWeek,
+        lectureDate: _lectureDate,
         room: _lectureRoom,
       ),
     );
@@ -897,7 +898,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     required String teacher,
     required String startTime,
     required String endTime,
-    required String dayOfWeek,
+    required String? lectureDate,
     required String room,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -905,7 +906,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
     final subjectController = TextEditingController(text: subject);
     final teacherController = TextEditingController(text: teacher);
     final roomController = TextEditingController(text: room);
-    final dayController = TextEditingController(text: dayOfWeek);
+    final dateController = TextEditingController(text: lectureDate);
     final startTimeController = TextEditingController(text: startTime);
     final endTimeController = TextEditingController(text: endTime);
 
@@ -944,9 +945,26 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 ),
                 const SizedBox(height: 12),
                 TextField(
-                  controller: dayController,
-                  decoration: const InputDecoration(labelText: 'Day of Week'),
+                  controller: dateController,
+                  readOnly: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Date',
+                    suffixIcon: Icon(Icons.calendar_today_rounded),
+                  ),
                   style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                  onTap: () async {
+                    final initialDate = DateTime.tryParse(dateController.text) ?? DateTime.now();
+                    final pickedDate = await showDatePicker(
+                      context: context,
+                      initialDate: initialDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (pickedDate != null) {
+                      final formatted = "${pickedDate.year}-${pickedDate.month.toString().padLeft(2, '0')}-${pickedDate.day.toString().padLeft(2, '0')}";
+                      dateController.text = formatted;
+                    }
+                  },
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -954,16 +972,58 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     Expanded(
                       child: TextField(
                         controller: startTimeController,
-                        decoration: const InputDecoration(labelText: 'Start Time'),
+                        readOnly: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Start Time',
+                          suffixIcon: Icon(Icons.access_time_rounded),
+                        ),
                         style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                        onTap: () async {
+                          TimeOfDay initial = TimeOfDay.now();
+                          try {
+                            final parts = startTimeController.text.split(':');
+                            if (parts.length >= 2) {
+                              initial = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+                            }
+                          } catch (_) {}
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: initial,
+                          );
+                          if (picked != null) {
+                            final formatted = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}:00';
+                            startTimeController.text = formatted;
+                          }
+                        },
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextField(
                         controller: endTimeController,
-                        decoration: const InputDecoration(labelText: 'End Time'),
+                        readOnly: true,
+                        decoration: const InputDecoration(
+                          labelText: 'End Time',
+                          suffixIcon: Icon(Icons.access_time_rounded),
+                        ),
                         style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                        onTap: () async {
+                          TimeOfDay initial = TimeOfDay.now();
+                          try {
+                            final parts = endTimeController.text.split(':');
+                            if (parts.length >= 2) {
+                              initial = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+                            }
+                          } catch (_) {}
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: initial,
+                          );
+                          if (picked != null) {
+                            final formatted = '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}:00';
+                            endTimeController.text = formatted;
+                          }
+                        },
                       ),
                     ),
                   ],
@@ -1032,7 +1092,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                       _lectureSubject = 'Physics';
                       _lectureTeacher = 'Mr. R. Sharma';
                       _lectureRoom = 'Room 101';
-                      _lectureDayOfWeek = 'Monday';
+                      _lectureDate = '2026-07-16';
                       _lectureStartTime = '09:00 AM';
                       _lectureEndTime = '10:30 AM';
                     });
@@ -1055,24 +1115,49 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 ),
                 elevation: 0,
               ),
-              onPressed: () {
+              onPressed: () async {
                 if (subjectController.text.trim().isEmpty ||
                     teacherController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text('Please fill out Subject and Teacher fields')));
                   return;
                 }
-                setState(() {
-                  _lectureSubject = subjectController.text.trim();
-                  _lectureTeacher = teacherController.text.trim();
-                  _lectureRoom = roomController.text.trim();
-                  _lectureDayOfWeek = dayController.text.trim();
-                  _lectureStartTime = startTimeController.text.trim();
-                  _lectureEndTime = endTimeController.text.trim();
-                });
-                Navigator.pop(dialogContext);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Upcoming lecture updated successfully!')));
+                
+                if (lectureId != null && batchId != null) {
+                  try {
+                    final client = Supabase.instance.client;
+                    await client.from('timetable').update({
+                      'room': roomController.text.trim(),
+                      'lecture_date': dateController.text.trim(),
+                      'start_time': startTimeController.text.trim(),
+                      'end_time': endTimeController.text.trim(),
+                    }).eq('id', lectureId);
+                    
+                    // Refresh the admin dashboard/details state
+                    ref.read(batchDetailControllerProvider(batchId).notifier).loadAllDetails();
+                    
+                    if (!dialogContext.mounted || !context.mounted) return;
+                    Navigator.pop(dialogContext);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Lecture updated successfully!')));
+                  } catch (e) {
+                    if (!dialogContext.mounted || !context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error updating lecture: $e')));
+                  }
+                } else {
+                  setState(() {
+                    _lectureSubject = subjectController.text.trim();
+                    _lectureTeacher = teacherController.text.trim();
+                    _lectureRoom = roomController.text.trim();
+                    _lectureDate = dateController.text.trim();
+                    _lectureStartTime = startTimeController.text.trim();
+                    _lectureEndTime = endTimeController.text.trim();
+                  });
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('Upcoming lecture updated successfully!')));
+                }
               },
               child: const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),

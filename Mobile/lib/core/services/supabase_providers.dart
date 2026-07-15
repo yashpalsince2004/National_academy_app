@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -249,6 +250,7 @@ final studentUpcomingLectureProvider = FutureProvider<Map<String, String>?>((ref
     final formattedEndTime = formatTime(endTime);
     
     String countdownLabel = '';
+    String formattedDate = '';
     if (lectureDate.isNotEmpty) {
       try {
         final parsedDate = DateTime.parse(lectureDate);
@@ -263,6 +265,8 @@ final studentUpcomingLectureProvider = FutureProvider<Map<String, String>?>((ref
           const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
           countdownLabel = '${parsedDate.day} ${months[parsedDate.month - 1]}';
         }
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        formattedDate = '${parsedDate.day} ${months[parsedDate.month - 1]} ${parsedDate.year}';
       } catch (_) {}
     }
     
@@ -274,6 +278,7 @@ final studentUpcomingLectureProvider = FutureProvider<Map<String, String>?>((ref
       'startTime': formattedStartTime,
       'endTime': formattedEndTime,
       'countdownLabel': countdownLabel,
+      'date': formattedDate,
     };
   } catch (e) {
     return null;
@@ -332,6 +337,7 @@ final studentUpcomingLecturesProvider = FutureProvider<List<Map<String, String>>
       final formattedEndTime = formatTime(endTime);
       
       String countdownLabel = '';
+      String formattedDate = '';
       if (lectureDate.isNotEmpty) {
         try {
           final parsedDate = DateTime.parse(lectureDate);
@@ -346,6 +352,8 @@ final studentUpcomingLecturesProvider = FutureProvider<List<Map<String, String>>
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             countdownLabel = '${parsedDate.day} ${months[parsedDate.month - 1]}';
           }
+          const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          formattedDate = '${parsedDate.day} ${months[parsedDate.month - 1]} ${parsedDate.year}';
         } catch (_) {}
       }
       
@@ -357,10 +365,206 @@ final studentUpcomingLecturesProvider = FutureProvider<List<Map<String, String>>
         'startTime': formattedStartTime,
         'endTime': formattedEndTime,
         'countdownLabel': countdownLabel,
+        'date': formattedDate,
       };
     }).toList();
   } catch (e) {
     return [];
   }
 });
+
+/// A provider that listens to real-time changes in the timetable table
+/// and invalidates the upcoming lecture providers to reflect the changes immediately.
+final timetableSubscriptionProvider = Provider.autoDispose<void>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  final channel = client.channel('public:timetable').onPostgresChanges(
+    event: PostgresChangeEvent.all,
+    schema: 'public',
+    table: 'timetable',
+    callback: (payload) {
+      ref.invalidate(studentUpcomingLectureProvider);
+      ref.invalidate(studentUpcomingLecturesProvider);
+      ref.invalidate(studentLiveLectureProvider);
+      ref.invalidate(studentLectureAlertProvider);
+    },
+  );
+  channel.subscribe();
+  ref.onDispose(() {
+    client.removeChannel(channel);
+  });
+});
+
+/// Fetches the live/active lecture happening right now for the current student's active batches.
+final studentLiveLectureProvider = FutureProvider<Map<String, String>?>((ref) async {
+  // Re-evaluate every 30 seconds to handle boundary changes of lecture times
+  final timer = Timer(const Duration(seconds: 30), () {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() => timer.cancel());
+
+  final studentId = await ref.watch(studentIdProvider.future);
+  if (studentId == null) return null;
+
+  final batchIds = await ref.watch(studentBatchIdsProvider.future);
+  if (batchIds.isEmpty) return null;
+
+  final client = ref.watch(supabaseClientProvider);
+  final now = DateTime.now();
+  final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  
+  // Format current time as HH:MM:SS
+  final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}';
+
+  try {
+    final rows = await client
+        .from('timetable')
+        .select('*, subjects(name), profiles:teacher_id(full_name)')
+        .inFilter('batch_id', batchIds)
+        .eq('lecture_date', todayStr)
+        .lte('start_time', timeStr)
+        .gte('end_time', timeStr)
+        .limit(1);
+
+    if ((rows as List).isEmpty) return null;
+    final row = rows.first;
+    
+    final sub = row['subjects'] as Map<String, dynamic>?;
+    final prof = row['profiles'] as Map<String, dynamic>?;
+    
+    final subject = sub != null ? sub['name'] as String? ?? 'General' : 'General';
+    final teacher = prof != null ? prof['full_name'] as String? ?? 'Teacher' : 'Teacher';
+    final classroom = row['room'] as String? ?? 'Room 101';
+    final startTime = row['start_time'] as String? ?? '';
+    final endTime = row['end_time'] as String? ?? '';
+    
+    String formatTime(String timeStr) {
+      if (timeStr.isEmpty) return '';
+      try {
+        final parts = timeStr.split(':');
+        if (parts.length >= 2) {
+          final hour = int.parse(parts[0]);
+          final min = int.parse(parts[1]);
+          final period = hour >= 12 ? 'PM' : 'AM';
+          final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+          return '${displayHour.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')} $period';
+        }
+      } catch (_) {}
+      return timeStr;
+    }
+    
+    final formattedStartTime = formatTime(startTime);
+    final formattedEndTime = formatTime(endTime);
+    
+    return {
+      'subject': subject,
+      'topic': 'Active Class Lecture',
+      'teacher': teacher,
+      'classroom': classroom,
+      'startTime': formattedStartTime,
+      'endTime': formattedEndTime,
+    };
+  } catch (e) {
+    return null;
+  }
+});
+
+/// Fetches the live/active or starting soon (<= 5 mins) lecture alert map for the student.
+final studentLectureAlertProvider = FutureProvider<Map<String, String>?>((ref) async {
+  // Re-evaluate every 30 seconds to handle boundary changes of lecture times
+  final timer = Timer(const Duration(seconds: 30), () {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() => timer.cancel());
+
+  final studentId = await ref.watch(studentIdProvider.future);
+  if (studentId == null) return null;
+
+  final batchIds = await ref.watch(studentBatchIdsProvider.future);
+  if (batchIds.isEmpty) return null;
+
+  final client = ref.watch(supabaseClientProvider);
+  final now = DateTime.now();
+  final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+  try {
+    // Query all lectures for today
+    final rows = await client
+        .from('timetable')
+        .select('*, subjects(name), profiles:teacher_id(full_name)')
+        .inFilter('batch_id', batchIds)
+        .eq('lecture_date', todayStr);
+
+    if ((rows as List).isEmpty) return null;
+
+    String formatTime(String timeStr) {
+      if (timeStr.isEmpty) return '';
+      try {
+        final parts = timeStr.split(':');
+        if (parts.length >= 2) {
+          final hour = int.parse(parts[0]);
+          final min = int.parse(parts[1]);
+          final period = hour >= 12 ? 'PM' : 'AM';
+          final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+          return '${displayHour.toString().padLeft(2, '0')}:${min.toString().padLeft(2, '0')} $period';
+        }
+      } catch (_) {}
+      return timeStr;
+    }
+
+    for (final row in rows) {
+      final startTime = row['start_time'] as String? ?? '';
+      final endTime = row['end_time'] as String? ?? '';
+      if (startTime.isEmpty || endTime.isEmpty) continue;
+
+      try {
+        final partsStart = startTime.split(':');
+        final partsEnd = endTime.split(':');
+        final startDateTime = DateTime(now.year, now.month, now.day, int.parse(partsStart[0]), int.parse(partsStart[1]));
+        final endDateTime = DateTime(now.year, now.month, now.day, int.parse(partsEnd[0]), int.parse(partsEnd[1]));
+
+        final sub = row['subjects'] as Map<String, dynamic>?;
+        final prof = row['profiles'] as Map<String, dynamic>?;
+        final subject = sub != null ? sub['name'] as String? ?? 'General' : 'General';
+        final teacher = prof != null ? prof['full_name'] as String? ?? 'Teacher' : 'Teacher';
+        final classroom = row['room'] as String? ?? 'Room 101';
+        final formattedStartTime = formatTime(startTime);
+        final formattedEndTime = formatTime(endTime);
+
+        if (now.isAfter(startDateTime) && now.isBefore(endDateTime)) {
+          // Live now
+          return {
+            'status': 'live',
+            'subject': subject,
+            'topic': 'Active Class Lecture',
+            'teacher': teacher,
+            'classroom': classroom,
+            'startTime': formattedStartTime,
+            'endTime': formattedEndTime,
+          };
+        } else if (now.isBefore(startDateTime)) {
+          final diffMin = startDateTime.difference(now).inMinutes;
+          final diffSec = startDateTime.difference(now).inSeconds;
+          if (diffSec >= 0 && diffSec <= 300) { // 5 minutes = 300 seconds
+            // Starting soon (in <= 5 minutes)
+            return {
+              'status': 'starting_soon',
+              'minutes': diffMin.toString(),
+              'subject': subject,
+              'topic': diffSec <= 30 ? 'Starting Right Now' : 'Starts in $diffMin minutes',
+              'teacher': teacher,
+              'classroom': classroom,
+              'startTime': formattedStartTime,
+              'endTime': formattedEndTime,
+            };
+          }
+        }
+      } catch (_) {}
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
+});
+
+
 

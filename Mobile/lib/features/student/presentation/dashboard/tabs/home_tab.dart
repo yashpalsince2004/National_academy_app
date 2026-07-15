@@ -11,15 +11,7 @@ const _studentName = 'Yash';
 const _batchName = 'Alpha JEE Pro';
 const _batchClass = '12th • JEE';
 
-// Simulate a live/upcoming lecture; set to null to show placeholder state
-const Map<String, String>? _liveLecture = {
-  'subject': 'Physics',
-  'topic': 'Mechanics – Newton\'s Laws',
-  'teacher': 'Prof. H.C. Verma',
-  'classroom': 'Classroom A-102',
-  'startTime': '08:00 AM',
-  'endTime': '09:30 AM',
-};
+
 
 
 const Map<String, String>? _upcomingTest = {
@@ -55,12 +47,18 @@ class HomeTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Listen to realtime timetable updates
+    ref.watch(timetableSubscriptionProvider);
+
+
+
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final paddingTop = MediaQuery.of(context).padding.top;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
+
       body: Stack(
         children: [
           // ── Scrollable Content ─────────────────────────────────────────────
@@ -247,19 +245,22 @@ class _GreetingHeader extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 // ALERT CARD – Live lecture / test ongoing
 // ─────────────────────────────────────────────────────────────────────────────
-class _AlertCard extends StatelessWidget {
+class _AlertCard extends ConsumerWidget {
   const _AlertCard({required this.isDark});
   final bool isDark;
 
   @override
-  Widget build(BuildContext context) {
-    // Show the live lecture alert if present
-    if (_liveLecture != null) {
-      return _LiveLectureAlert(data: _liveLecture!, isDark: isDark);
-    }
-
-    // Fallback: quiet empty state placeholder
-    return _EmptyAlertCard(isDark: isDark);
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref.watch(studentLectureAlertProvider).when(
+      data: (lectureAlert) {
+        if (lectureAlert != null) {
+          return _LiveLectureAlert(data: lectureAlert, isDark: isDark);
+        }
+        return _EmptyAlertCard(isDark: isDark);
+      },
+      loading: () => _EmptyAlertCard(isDark: isDark),
+      error: (err, _) => _EmptyAlertCard(isDark: isDark),
+    );
   }
 }
 
@@ -270,17 +271,24 @@ class _LiveLectureAlert extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final status = data['status'] ?? 'live';
+    final isStartingSoon = status == 'starting_soon';
+    final accentColor = isStartingSoon ? const Color(0xFFF59E0B) : AppColors.error;
+    final backgroundColor = isDark 
+        ? (isStartingSoon ? const Color(0xFF2C221A) : const Color(0xFF2C1A1A)) 
+        : (isStartingSoon ? const Color(0xFFFFFBEB) : const Color(0xFFFFF1F1));
+
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2C1A1A) : const Color(0xFFFFF1F1),
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppColors.error.withValues(alpha: isDark ? 0.30 : 0.25),
+          color: accentColor.withValues(alpha: isDark ? 0.30 : 0.25),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.error.withValues(alpha: 0.08),
+            color: accentColor.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -297,17 +305,19 @@ class _LiveLectureAlert extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.12),
+                  color: accentColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(9999),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    _PulseDot(),
-                    SizedBox(width: 6),
+                    if (!isStartingSoon) ...[
+                      const _PulseDot(),
+                      const SizedBox(width: 6),
+                    ],
                     Text(
-                      'LIVE NOW',
+                      isStartingSoon ? 'STARTING SOON' : 'LIVE NOW',
                       style: TextStyle(
-                        color: AppColors.error,
+                        color: accentColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.8,
@@ -321,12 +331,12 @@ class _LiveLectureAlert extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.error,
+                  color: isStartingSoon ? AppColors.primary : AppColors.error,
                   borderRadius: BorderRadius.circular(9999),
                 ),
-                child: const Text(
-                  'Join Now',
-                  style: TextStyle(
+                child: Text(
+                  isStartingSoon ? 'Prepare' : 'Join Now',
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -729,11 +739,26 @@ class _UpcomingLectureCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            _SmInfoChip(
-              icon: Icons.access_time_rounded,
-              label: '${data['startTime']} – ${data['endTime']}',
-              isDark: isDark,
+            Row(
+              children: [
+                Expanded(
+                  child: _SmInfoChip(
+                    icon: Icons.calendar_today_outlined,
+                    label: data['date'] ?? '',
+                    isDark: isDark,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _SmInfoChip(
+                    icon: Icons.access_time_rounded,
+                    label: '${data['startTime']} – ${data['endTime']}',
+                    isDark: isDark,
+                  ),
+                ),
+              ],
             ),
+
           ],
         ],
       ),
