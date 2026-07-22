@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:national_academy/features/batches/data/models/exam_model.dart';
 
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
@@ -197,7 +199,8 @@ final studentDppFeedProvider = FutureProvider<List<StudentDppFeedItem>>((ref) as
 });
 
 /// Fetches the next scheduled lecture for the current student's active batches.
-final studentUpcomingLectureProvider = FutureProvider<Map<String, String>?>((ref) async {
+final AutoDisposeFutureProvider<Map<String, String>?> studentUpcomingLectureProvider = FutureProvider.autoDispose<Map<String, String>?>((ref) async {
+  ref.watch(timetableSubscriptionProvider);
   final studentId = await ref.watch(studentIdProvider.future);
   if (studentId == null) return null;
 
@@ -216,21 +219,26 @@ final studentUpcomingLectureProvider = FutureProvider<Map<String, String>?>((ref
         .gte('lecture_date', todayStr)
         .order('lecture_date', ascending: true)
         .order('start_time', ascending: true)
-        .limit(1);
+        .limit(5);
 
     if ((rows as List).isEmpty) return null;
-    final row = rows.first;
-    
+    final list = (rows as List).cast<Map<String, dynamic>>();
+    final row = list.firstWhere(
+      (r) => (r['is_cancelled'] as bool? ?? false) == false,
+      orElse: () => list.first,
+    );
+
+    final isCancelled = row['is_cancelled'] as bool? ?? false;
     final sub = row['subjects'] as Map<String, dynamic>?;
     final prof = row['profiles'] as Map<String, dynamic>?;
-    
+
     final subject = sub != null ? sub['name'] as String? ?? 'General' : 'General';
     final teacher = prof != null ? prof['full_name'] as String? ?? 'Teacher' : 'Teacher';
     final classroom = row['room'] as String? ?? 'Room 101';
     final startTime = row['start_time'] as String? ?? '';
     final endTime = row['end_time'] as String? ?? '';
     final lectureDate = row['lecture_date'] as String? ?? '';
-    
+
     String formatTime(String timeStr) {
       if (timeStr.isEmpty) return '';
       try {
@@ -245,10 +253,10 @@ final studentUpcomingLectureProvider = FutureProvider<Map<String, String>?>((ref
       } catch (_) {}
       return timeStr;
     }
-    
+
     final formattedStartTime = formatTime(startTime);
     final formattedEndTime = formatTime(endTime);
-    
+
     String countdownLabel = '';
     String formattedDate = '';
     if (lectureDate.isNotEmpty) {
@@ -269,7 +277,7 @@ final studentUpcomingLectureProvider = FutureProvider<Map<String, String>?>((ref
         formattedDate = '${parsedDate.day} ${months[parsedDate.month - 1]} ${parsedDate.year}';
       } catch (_) {}
     }
-    
+
     return {
       'subject': subject,
       'topic': 'Scheduled Class Lecture',
@@ -279,13 +287,15 @@ final studentUpcomingLectureProvider = FutureProvider<Map<String, String>?>((ref
       'endTime': formattedEndTime,
       'countdownLabel': countdownLabel,
       'date': formattedDate,
+      'isCancelled': isCancelled ? 'true' : 'false',
     };
   } catch (e) {
     return null;
   }
 });
 
-final studentUpcomingLecturesProvider = FutureProvider<List<Map<String, String>>>((ref) async {
+final AutoDisposeFutureProvider<List<Map<String, String>>> studentUpcomingLecturesProvider = FutureProvider.autoDispose<List<Map<String, String>>>((ref) async {
+  ref.watch(timetableSubscriptionProvider);
   final studentId = await ref.watch(studentIdProvider.future);
   if (studentId == null) return [];
 
@@ -322,20 +332,21 @@ final studentUpcomingLecturesProvider = FutureProvider<List<Map<String, String>>
       return timeStr;
     }
 
-    return rows.map((row) {
+    return (rows as List).map((row) {
+      final isCancelled = row['is_cancelled'] as bool? ?? false;
       final sub = row['subjects'] as Map<String, dynamic>?;
       final prof = row['profiles'] as Map<String, dynamic>?;
-      
+
       final subject = sub != null ? sub['name'] as String? ?? 'General' : 'General';
       final teacher = prof != null ? prof['full_name'] as String? ?? 'Teacher' : 'Teacher';
       final classroom = row['room'] as String? ?? 'Room 101';
       final startTime = row['start_time'] as String? ?? '';
       final endTime = row['end_time'] as String? ?? '';
       final lectureDate = row['lecture_date'] as String? ?? '';
-      
+
       final formattedStartTime = formatTime(startTime);
       final formattedEndTime = formatTime(endTime);
-      
+
       String countdownLabel = '';
       String formattedDate = '';
       if (lectureDate.isNotEmpty) {
@@ -356,7 +367,7 @@ final studentUpcomingLecturesProvider = FutureProvider<List<Map<String, String>>
           formattedDate = '${parsedDate.day} ${months[parsedDate.month - 1]} ${parsedDate.year}';
         } catch (_) {}
       }
-      
+
       return {
         'subject': subject,
         'topic': 'Scheduled Class Lecture',
@@ -366,6 +377,7 @@ final studentUpcomingLecturesProvider = FutureProvider<List<Map<String, String>>
         'endTime': formattedEndTime,
         'countdownLabel': countdownLabel,
         'date': formattedDate,
+        'isCancelled': isCancelled ? 'true' : 'false',
       };
     }).toList();
   } catch (e) {
@@ -565,6 +577,390 @@ final studentLectureAlertProvider = FutureProvider<Map<String, String>?>((ref) a
   }
   return null;
 });
+
+/// Fetches the student's full name from the profiles table.
+final studentProfileNameProvider = FutureProvider<String?>((ref) async {
+  final client = ref.watch(supabaseClientProvider);
+  final user = client.auth.currentUser;
+  if (user == null) return null;
+
+  final res = await client
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .maybeSingle();
+
+  return res?['full_name'] as String?;
+});
+
+/// Details model for the student's enrolled batch
+class StudentEnrolledBatch {
+  final String id;
+  final String name;
+  final String classLevel;
+  final String examType;
+
+  const StudentEnrolledBatch({
+    required this.id,
+    required this.name,
+    required this.classLevel,
+    required this.examType,
+  });
+
+  String get formattedClassAndExam {
+    final level = classLevel.isEmpty
+        ? ''
+        : (classLevel.toLowerCase().contains('th') ? classLevel : '${classLevel}th');
+    if (level.isNotEmpty && examType.isNotEmpty) {
+      return '$level • $examType';
+    } else if (level.isNotEmpty) {
+      return level;
+    } else if (examType.isNotEmpty) {
+      return examType;
+    }
+    return '';
+  }
+}
+
+/// Fetches details of the batch the current student is actively enrolled in.
+final studentEnrolledBatchProvider = FutureProvider<StudentEnrolledBatch?>((ref) async {
+  final batchIds = await ref.watch(studentBatchIdsProvider.future);
+  if (batchIds.isEmpty) return null;
+
+  final client = ref.watch(supabaseClientProvider);
+  final res = await client
+      .from('batches')
+      .select('id, name, class_level, exam_type')
+      .eq('id', batchIds.first)
+      .maybeSingle();
+
+  if (res == null) return null;
+
+  return StudentEnrolledBatch(
+    id: res['id'] as String? ?? '',
+    name: res['name'] as String? ?? '',
+    classLevel: res['class_level'] as String? ?? '',
+    examType: res['exam_type'] as String? ?? '',
+  );
+});
+
+/// Real-time subscription to tests & exams tables to auto-refresh student providers immediately.
+final AutoDisposeProvider<void> testsSubscriptionProvider = Provider.autoDispose<void>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+
+  final channelTests = client.channel('public:tests_realtime').onPostgresChanges(
+    event: PostgresChangeEvent.all,
+    schema: 'public',
+    table: 'tests',
+    callback: (payload) {
+      ref.invalidate(studentUpcomingTestProvider);
+      ref.invalidate(studentExamsListProvider);
+    },
+  );
+  channelTests.subscribe();
+
+  final channelExams = client.channel('public:exams_realtime').onPostgresChanges(
+    event: PostgresChangeEvent.all,
+    schema: 'public',
+    table: 'exams',
+    callback: (payload) {
+      ref.invalidate(studentUpcomingTestProvider);
+      ref.invalidate(studentExamsListProvider);
+    },
+  );
+  channelExams.subscribe();
+
+  ref.onDispose(() {
+    client.removeChannel(channelTests);
+    client.removeChannel(channelExams);
+  });
+});
+
+/// Fetches all active & cancelled exams/tests for the student's batches.
+final AutoDisposeFutureProvider<List<ExamModel>> studentExamsListProvider = FutureProvider.autoDispose<List<ExamModel>>((ref) async {
+  ref.watch(testsSubscriptionProvider);
+  final batchIds = await ref.watch(studentBatchIdsProvider.future);
+  if (batchIds.isEmpty) return [];
+
+  final client = ref.watch(supabaseClientProvider);
+  try {
+    final res = await client
+        .from('tests')
+        .select('*, subjects(name)')
+        .inFilter('batch_id', batchIds)
+        .order('test_date', ascending: true);
+
+    if ((res as List).isNotEmpty) {
+      return (res as List).map((json) {
+        final Map<String, dynamic> adaptedJson = Map<String, dynamic>.from(json);
+        adaptedJson['name'] = json['title'] ?? json['name'] ?? '';
+        adaptedJson['exam_date'] = json['test_date'] ?? json['exam_date'] ?? '';
+        adaptedJson['exam_time'] = json['timing'] ?? json['exam_time'] ?? '';
+        adaptedJson['max_marks'] = json['total_marks'] ?? json['max_marks'] ?? 100;
+        return ExamModel.fromJson(adaptedJson);
+      }).toList();
+    }
+  } catch (_) {}
+
+  try {
+    final res = await client
+        .from('exams')
+        .select('*, subjects(name)')
+        .inFilter('batch_id', batchIds)
+        .order('exam_date', ascending: true);
+    return (res as List).map((json) => ExamModel.fromJson(json)).toList();
+  } catch (e) {
+    return [];
+  }
+});
+
+/// Fetches the next upcoming test scheduled (or cancelled test) for any of the student's active batches.
+final AutoDisposeFutureProvider<Map<String, String>?> studentUpcomingTestProvider = FutureProvider.autoDispose<Map<String, String>?>((ref) async {
+  ref.watch(testsSubscriptionProvider);
+  final batchIds = await ref.watch(studentBatchIdsProvider.future);
+  if (batchIds.isEmpty) return null;
+
+  final client = ref.watch(supabaseClientProvider);
+  final now = DateTime.now();
+  final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+  try {
+    // 1. Primary Source: Query 'tests' table
+    final testRows = await client
+        .from('tests')
+        .select('*, subjects(name)')
+        .inFilter('batch_id', batchIds)
+        .gte('test_date', todayStr)
+        .order('test_date', ascending: true)
+        .limit(5);
+
+    if ((testRows as List).isNotEmpty) {
+      final list = (testRows as List).cast<Map<String, dynamic>>();
+      final selectedTest = list.firstWhere(
+        (t) => (t['is_cancelled'] as bool? ?? false) == false,
+        orElse: () => list.first,
+      );
+
+      final title = selectedTest['title'] as String? ?? selectedTest['name'] as String? ?? 'Scheduled Test';
+      final testDateStr = selectedTest['test_date'] as String? ?? selectedTest['exam_date'] as String? ?? '';
+      final timing = selectedTest['timing'] as String? ?? selectedTest['exam_time'] as String? ?? '10:00 AM';
+      final marks = selectedTest['total_marks'] ?? selectedTest['max_marks'] ?? 100;
+      final isCancelled = selectedTest['is_cancelled'] as bool? ?? false;
+      final subMap = selectedTest['subjects'] as Map<String, dynamic>?;
+      final subject = subMap?['name'] as String? ?? 'General';
+
+      final testDate = DateTime.tryParse(testDateStr) ?? now;
+      final todayMidnight = DateTime(now.year, now.month, now.day);
+      final testMidnight = DateTime(testDate.year, testDate.month, testDate.day);
+      final diffDays = testMidnight.difference(todayMidnight).inDays;
+      final daysLeft = diffDays < 0 ? 0 : diffDays;
+
+      String formattedDate = '';
+      if (testMidnight == todayMidnight) {
+        formattedDate = 'Today';
+      } else if (testMidnight == todayMidnight.add(const Duration(days: 1))) {
+        formattedDate = 'Tomorrow';
+      } else {
+        formattedDate = '${testDate.day}/${testDate.month}/${testDate.year}';
+      }
+
+      return {
+        'subject': subject,
+        'topic': title.isEmpty ? 'Scheduled Test' : title,
+        'date': formattedDate,
+        'daysLeft': daysLeft.toString(),
+        'time': timing.isEmpty ? '10:00 AM' : timing,
+        'duration': 'Test',
+        'marks': '$marks',
+        'isCancelled': isCancelled ? 'true' : 'false',
+        'status': isCancelled ? 'Test Cancelled' : 'Upcoming',
+      };
+    }
+  } catch (_) {}
+
+  try {
+    // 2. Secondary Source: Query 'exams' table
+    final examRows = await client
+        .from('exams')
+        .select('*, subjects(name)')
+        .inFilter('batch_id', batchIds)
+        .gte('exam_date', todayStr)
+        .order('exam_date', ascending: true)
+        .limit(5);
+
+    if ((examRows as List).isNotEmpty) {
+      final list = (examRows as List).cast<Map<String, dynamic>>();
+      final selectedExamJson = list.firstWhere(
+        (t) => (t['is_cancelled'] as bool? ?? false) == false,
+        orElse: () => list.first,
+      );
+      final exam = ExamModel.fromJson(selectedExamJson);
+
+      final examDate = DateTime.tryParse(exam.examDate) ?? now;
+      final todayMidnight = DateTime(now.year, now.month, now.day);
+      final examMidnight = DateTime(examDate.year, examDate.month, examDate.day);
+      final diffDays = examMidnight.difference(todayMidnight).inDays;
+      final daysLeft = diffDays < 0 ? 0 : diffDays;
+
+      String formattedDate = '';
+      if (examMidnight == todayMidnight) {
+        formattedDate = 'Today';
+      } else if (examMidnight == todayMidnight.add(const Duration(days: 1))) {
+        formattedDate = 'Tomorrow';
+      } else {
+        formattedDate = '${examDate.day}/${examDate.month}/${examDate.year}';
+      }
+
+      return {
+        'subject': exam.subjectName,
+        'topic': exam.name.isEmpty ? 'Scheduled Exam' : exam.name,
+        'date': formattedDate,
+        'daysLeft': daysLeft.toString(),
+        'time': exam.examTime.isEmpty ? '10:00 AM' : exam.examTime,
+        'duration': 'Exam',
+        'marks': '${exam.maxMarks}',
+        'isCancelled': exam.isCancelled ? 'true' : 'false',
+        'status': exam.isCancelled ? 'Test Cancelled' : 'Upcoming',
+      };
+    }
+  } catch (_) {}
+
+  try {
+    // 3. Fallback: check dpp_assignments where title/type is test
+    final dppRows = await client
+        .from('dpp_assignments')
+        .select('*, dpps(*)')
+        .inFilter('batch_id', batchIds)
+        .gte('scheduled_at', todayStr)
+        .order('scheduled_at', ascending: true)
+        .limit(5);
+
+    for (final row in (dppRows as List)) {
+      final dpp = row['dpps'] as Map<String, dynamic>?;
+      final title = dpp?['title'] as String? ?? '';
+      final examType = dpp?['exam_type'] as String? ?? '';
+      if (title.toLowerCase().contains('test') || title.toLowerCase().contains('exam') || examType.toLowerCase().contains('test')) {
+        final scheduledAtStr = row['scheduled_at'] as String? ?? '';
+        final scheduledAt = DateTime.tryParse(scheduledAtStr) ?? now;
+        final diffDays = scheduledAt.difference(now).inDays;
+        final daysLeft = diffDays < 0 ? 0 : diffDays;
+
+        String formattedDate = '';
+        if (scheduledAt.day == now.day) {
+          formattedDate = 'Today';
+        } else if (scheduledAt.day == now.day + 1) {
+          formattedDate = 'Tomorrow';
+        } else {
+          formattedDate = '${scheduledAt.day}/${scheduledAt.month}/${scheduledAt.year}';
+        }
+
+        return {
+          'subject': dpp?['subject'] as String? ?? 'Batch Test',
+          'topic': title,
+          'date': formattedDate,
+          'daysLeft': daysLeft.toString(),
+          'time': '10:00 AM',
+          'duration': '${dpp?['time_minutes'] ?? 180} mins',
+          'marks': '${dpp?['total_marks'] ?? 100}',
+        };
+      }
+    }
+  } catch (_) {}
+
+  return null;
+});
+
+class StudentFullProfileData {
+  final String name;
+  final String email;
+  final String phone;
+  final String parentPhone;
+  final String rollNo;
+  final String registeredClass;
+  final String targetExams;
+  final String status;
+
+  const StudentFullProfileData({
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.parentPhone,
+    required this.rollNo,
+    required this.registeredClass,
+    required this.targetExams,
+    required this.status,
+  });
+}
+
+/// Fetches full student profile details from students & profiles table in Supabase.
+final studentFullProfileProvider = FutureProvider<StudentFullProfileData?>((ref) async {
+  final client = ref.watch(supabaseClientProvider);
+  final user = client.auth.currentUser;
+  if (user == null) return null;
+
+  try {
+    final studentData = await client
+        .from('students')
+        .select('*')
+        .or('profile_id.eq.${user.id},auth_user_id.eq.${user.id}')
+        .maybeSingle();
+
+    final profileData = await client
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    final name = (studentData?['full_name'] as String?)?.trim().isNotEmpty == true
+        ? studentData!['full_name'] as String
+        : (profileData?['full_name'] as String?)?.trim().isNotEmpty == true
+            ? profileData!['full_name'] as String
+            : user.userMetadata?['full_name'] as String? ?? user.email?.split('@').first ?? 'Student';
+
+    final email = studentData?['email'] as String? ?? user.email ?? '';
+    final phone = studentData?['phone'] as String? ?? user.phone ?? 'Not provided';
+    final parentPhone = studentData?['parent_phone'] as String? ?? 'Not provided';
+    
+    final idStr = studentData?['id']?.toString() ?? user.id;
+    final rollNo = studentData?['roll_no'] as String? ??
+        'NA-${idStr.substring(0, math.min(8, idStr.length)).toUpperCase()}';
+
+    final regClass = studentData?['registered_class'] as String? ??
+        studentData?['class_level'] as String? ??
+        '12th';
+
+    final targetExam = studentData?['target_exam'] as String? ??
+        studentData?['target_exams'] as String? ??
+        'JEE / NEET';
+
+    final status = studentData?['status'] as String? ?? 'Active';
+
+    return StudentFullProfileData(
+      name: name,
+      email: email,
+      phone: phone,
+      parentPhone: parentPhone,
+      rollNo: rollNo,
+      registeredClass: regClass,
+      targetExams: targetExam,
+      status: status,
+    );
+  } catch (e) {
+    final name = user.userMetadata?['full_name'] as String? ?? user.email?.split('@').first ?? 'Student';
+    return StudentFullProfileData(
+      name: name,
+      email: user.email ?? '',
+      phone: user.phone ?? 'Not provided',
+      parentPhone: 'Not provided',
+      rollNo: 'NA-${user.id.substring(0, math.min(8, user.id.length)).toUpperCase()}',
+      registeredClass: '12th',
+      targetExams: 'JEE / NEET',
+      status: 'Active',
+    );
+  }
+});
+
+
 
 
 

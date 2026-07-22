@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 
 class FloatingNavBarItem {
-  final IconData icon;
-  final IconData activeIcon;
+  final IconData? icon;
+  final IconData? activeIcon;
+  final String? customIconPath;
   final String label;
 
   const FloatingNavBarItem({
-    required this.icon,
-    required this.activeIcon,
+    this.icon,
+    this.activeIcon,
+    this.customIconPath,
     required this.label,
   });
 }
@@ -87,11 +89,18 @@ class FloatingNavBar extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
-                      isSelected ? item.activeIcon : item.icon,
-                      color: isSelected ? activeColor : inactiveColor,
-                      size: 24,
-                    ),
+                    item.customIconPath != null
+                        ? Image.asset(
+                            item.customIconPath!,
+                            width: 24,
+                            height: 24,
+                            color: isSelected ? activeColor : inactiveColor,
+                          )
+                        : Icon(
+                            isSelected ? item.activeIcon! : item.icon!,
+                            color: isSelected ? activeColor : inactiveColor,
+                            size: 24,
+                          ),
                     AnimatedSize(
                       duration: const Duration(milliseconds: 280),
                       curve: Curves.easeInOutCubic,

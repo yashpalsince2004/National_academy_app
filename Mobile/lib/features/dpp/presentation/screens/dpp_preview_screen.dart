@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
 import 'package:national_academy/core/widgets/app_dropdown.dart';
 import '../../../../core/services/pdf_service.dart';
+import '../../../../core/utils/toast_utils.dart';
 import '../controllers/dpp_generator_controller.dart';
 import '../../data/models/dpp_model.dart';
 
@@ -18,6 +20,87 @@ class DppPreviewScreen extends ConsumerStatefulWidget {
 class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
   final Map<int, bool> _expandedQuestions = {};
   bool _isAllExpanded = false;
+  bool _isLoadingDialogShowing = false;
+
+  void _showLoadingDialog() {
+    if (_isLoadingDialogShowing || !mounted) return;
+    _isLoadingDialogShowing = true;
+
+    showDialog(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      builder: (dialogCtx) {
+        final isDark = Theme.of(dialogCtx).brightness == Brightness.dark;
+        final cardBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+        final borderC = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+
+        return PopScope(
+          canPop: false,
+          child: Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: borderC),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Lottie.asset(
+                    'assets/Animation/sparkles_loop_loader_ai.lottie',
+                    width: 110,
+                    height: 110,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Regenerating Smart DPP...',
+                    style: TextStyle(
+                      fontFamily: 'SF Pro Text',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: isDark ? Colors.white : const Color(0xFF1D1D1F),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Formulating a fresh set of questions and detailed solutions.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'SF Pro Text',
+                      fontSize: 12,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    ).then((_) {
+      _isLoadingDialogShowing = false;
+    });
+  }
+
+  void _hideLoadingDialog() {
+    if (_isLoadingDialogShowing && mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      _isLoadingDialogShowing = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +108,14 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final state = ref.watch(dppGeneratorControllerProvider);
     final dpp = state.generatedDpp;
+
+    ref.listen(dppGeneratorControllerProvider, (previous, next) {
+      if (next.isGenerating) {
+        _showLoadingDialog();
+      } else {
+        _hideLoadingDialog();
+      }
+    });
 
     if (dpp == null) {
       return Scaffold(
@@ -56,6 +147,11 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
         title: const Text('Smart DPP Preview', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Regenerate DPP',
+            onPressed: state.isGenerating ? null : () => _regenerate(context),
+          ),
+          IconButton(
             icon: Icon(_isAllExpanded ? Icons.unfold_less_rounded : Icons.unfold_more_rounded),
             tooltip: _isAllExpanded ? 'Collapse All' : 'Expand All',
             onPressed: () {
@@ -77,7 +173,7 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
       body: Stack(
         children: [
           ListView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
             children: [
               // Statistics Header Card
               Container(
@@ -88,7 +184,7 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
+                      color: Colors.black.withValues(alpha: 0.02),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     )
@@ -102,7 +198,7 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0066CC).withOpacity(0.08),
+                            color: const Color(0xFF0066CC).withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -114,7 +210,7 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.08),
+                            color: Colors.grey.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -204,7 +300,7 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: Colors.grey.withOpacity(0.08),
+                                    color: Colors.grey.withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -222,7 +318,7 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
                              if (q.options != null && q.options!.isNotEmpty) ...[
                                const SizedBox(height: 16),
                                ...q.options!.asMap().entries.map((opt) {
-                                 final label = String.fromCharCode(65 + opt.key); // A, B, C, D
+                                 final label = String.fromCharCode((65 + opt.key).toInt()); // A, B, C, D
                                  return Container(
                                    width: double.infinity,
                                    margin: const EdgeInsets.only(bottom: 8),
@@ -235,7 +331,7 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
                                      children: [
                                        CircleAvatar(
                                          radius: 12,
-                                         backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                                         backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
                                          child: Text(
                                            label,
                                            style: TextStyle(
@@ -255,7 +351,7 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
                                      ],
                                    ),
                                  );
-                               }).toList(),
+                               }),
                              ]
                           ],
                         ),
@@ -305,7 +401,7 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                             decoration: BoxDecoration(
-                                              color: Colors.green.withOpacity(0.1),
+                                              color: Colors.green.withValues(alpha: 0.1),
                                               borderRadius: BorderRadius.circular(4),
                                             ),
                                             child: Text(
@@ -350,52 +446,75 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
                     ],
                   ),
                 );
-              }).toList(),
+              }),
             ],
           ),
 
-          // Bottom sticky action panel
+          // Floating Pill Bottom Action Panel
           Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
+            left: 16,
+            right: 16,
+            bottom: MediaQuery.of(context).padding.bottom + 12,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF151516) : const Color(0xFFF5F5F7),
-                border: Border(top: BorderSide(color: borderColor)),
+                color: isDark
+                    ? const Color(0xFF1C1C1E).withValues(alpha: 0.95)
+                    : Colors.white.withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(100),
+                border: Border.all(color: borderColor),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.12),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
+                  IconButton.outlined(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.all(12),
+                      shape: const CircleBorder(),
+                      side: const BorderSide(color: Color(0xFF0066CC)),
+                    ),
+                    onPressed: state.isGenerating ? null : () => _regenerate(context),
+                    icon: const Icon(Icons.refresh_rounded, color: Color(0xFF0066CC), size: 20),
+                    tooltip: 'Regenerate Questions',
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: const StadiumBorder(),
+                        side: BorderSide(color: borderColor),
                       ),
-                      onPressed: () => _saveDraft(context),
+                      onPressed: state.isGenerating ? null : () => _saveDraft(context),
                       icon: const Icon(Icons.save_as_rounded, size: 18),
-                      label: const Text('Save Draft'),
+                      label: const Text('Save Draft', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0066CC),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: const StadiumBorder(),
+                        elevation: 0,
                       ),
-                      onPressed: () => _showAssignDialog(context, dpp, state.batches, state.students),
+                      onPressed: state.isGenerating ? null : () => _showAssignDialog(context, dpp, state.batches, state.students),
                       icon: const Icon(Icons.assignment_turned_in_rounded, size: 18),
-                      label: const Text('Assign DPP'),
+                      label: const Text('Assign DPP', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
                   ),
                 ],
               ),
             ),
-          )
+          ),
         ],
       ),
     );
@@ -418,14 +537,29 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
     return Colors.orange;
   }
 
+  void _regenerate(BuildContext context) async {
+    try {
+      await ref.read(dppGeneratorControllerProvider.notifier).regenerateDpp();
+      if (!mounted) return;
+      final err = ref.read(dppGeneratorControllerProvider).error;
+      if (err != null) {
+        ToastUtils.showError(context, err);
+      } else {
+        ToastUtils.showSuccess(context, 'DPP regenerated with fresh questions!');
+      }
+    } catch (e) {
+      if (mounted) {
+        ToastUtils.showError(context, 'Failed to regenerate: $e');
+      }
+    }
+  }
+
   void _exportPdf(DppModel dpp) async {
     try {
       await PdfService.exportDppToPdf(dpp);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error exporting PDF: $e'), backgroundColor: Colors.redAccent),
-        );
+        ToastUtils.showError(context, 'Error exporting PDF: $e');
       }
     }
   }
@@ -434,15 +568,11 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
     try {
       await ref.read(dppGeneratorControllerProvider.notifier).saveDppDraft();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('DPP draft saved successfully.'), backgroundColor: Colors.green),
-        );
+        ToastUtils.showSuccess(context, 'DPP draft saved successfully.');
         context.pop(); // return to dashboard
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
-      );
+      ToastUtils.showError(context, 'Error: $e');
     }
   }
 
@@ -615,16 +745,12 @@ class _DppPreviewScreenState extends ConsumerState<DppPreviewScreen> {
                                 notify: notify,
                               );
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('DPP assigned successfully.'), backgroundColor: Colors.green),
-                            );
+                            ToastUtils.showSuccess(context, 'DPP assigned successfully.');
                             context.pop();
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
-                            );
+                            ToastUtils.showError(context, 'Error: $e');
                           }
                         }
                       },

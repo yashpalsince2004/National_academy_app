@@ -1,6 +1,7 @@
 import '../../data/models/batch_model.dart';
 import '../../data/models/batch_student_model.dart';
 import '../../data/models/timetable_lecture_model.dart';
+import '../../data/models/exam_model.dart';
 
 abstract class BatchRepository {
   Future<List<BatchModel>> fetchBatches();
@@ -31,4 +32,8 @@ abstract class BatchRepository {
   
   Future<Map<String, dynamic>> fetchAttendanceStats(String batchId);
   Future<Map<String, dynamic>> fetchPerformanceStats(String batchId);
+
+  Future<List<ExamModel>> fetchExams(String batchId);
+  Future<void> addExam(ExamModel exam);
+  Future<void> updateExam(ExamModel exam);
 }

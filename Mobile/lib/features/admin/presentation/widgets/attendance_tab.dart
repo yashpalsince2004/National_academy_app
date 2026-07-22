@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/utils/toast_utils.dart';
 import 'package:national_academy/core/widgets/app_dropdown.dart';
 
 class AttendanceTab extends StatefulWidget {
@@ -169,9 +170,7 @@ class _AttendanceTabState extends State<AttendanceTab> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Attendance saved successfully!')),
-                      );
+                      ToastUtils.showSuccess(context, 'Attendance saved successfully!', aboveNavBar: true);
                     },
                     child: const Text('Submit Attendance'),
                   ),

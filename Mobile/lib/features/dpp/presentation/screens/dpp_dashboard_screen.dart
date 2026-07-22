@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../controllers/dpp_generator_controller.dart';
+import 'package:flutter/services.dart';
+import 'package:lottie/lottie.dart';
+import 'dart:math' as math;
+
 
 class DppDashboardScreen extends ConsumerStatefulWidget {
   const DppDashboardScreen({super.key});
@@ -14,62 +18,145 @@ class _DppDashboardScreenState extends ConsumerState<DppDashboardScreen> {
   final _formKey = GlobalKey<FormState>();
   final _chapterController = TextEditingController();
   final _topicsController = TextEditingController();
-  final _questionsController = TextEditingController(text: '5');
-  final _timeController = TextEditingController(text: '30');
+  final _questionsController = TextEditingController(text: '10');
   final _marksController = TextEditingController();
+  final _timeController = TextEditingController(text: '45');
+  
+  String _selectedSubject = 'Physics';
+  String _selectedDifficulty = 'Intermediate';
 
-  String _selectedExam = 'JEE';
-  String? _selectedSubject;
-  String _selectedDifficulty = 'Medium';
 
-  final List<String> _exams = const ['JEE', 'NEET', 'NDA'];
-  final List<String> _allPossibleSubjects = const [
-    'Physics',
-    'Chemistry',
-    'Mathematics',
-    'Biology',
-    'English',
-    'Reasoning',
-    'GK'
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedSubject = _getSubjectsForExam(_selectedExam).first;
-  }
 
   @override
   void dispose() {
     _chapterController.dispose();
     _topicsController.dispose();
     _questionsController.dispose();
-    _timeController.dispose();
     _marksController.dispose();
+    _timeController.dispose();
     super.dispose();
   }
 
-  List<String> _getSubjectsForExam(String exam) {
-    switch (exam.toUpperCase()) {
-      case 'JEE':
-        return ['Physics', 'Chemistry', 'Mathematics'];
-      case 'NEET':
-        return ['Physics', 'Chemistry', 'Biology'];
-      case 'NDA':
-        return ['Mathematics', 'Biology', 'English', 'Reasoning', 'GK'];
-      default:
-        return ['Physics', 'Chemistry', 'Mathematics'];
+  void _submitGenerate() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final questionsCount = int.parse(_questionsController.text);
+    final timeMins = int.parse(_timeController.text);
+    final totalMarks = int.tryParse(_marksController.text) ?? (questionsCount * 4);
+
+    final List<String> topics = _topicsController.text
+        .split(',')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+
+    // Map difficulty: Basic -> Basic, Intermediate -> Medium, Advance -> High
+    String mappedDifficulty = 'Medium';
+    if (_selectedDifficulty == 'Basic') {
+      mappedDifficulty = 'Basic';
+    } else if (_selectedDifficulty == 'Advance') {
+      mappedDifficulty = 'High';
     }
+
+    // Call generateDpp
+    ref.read(dppGeneratorControllerProvider.notifier).generateDpp(
+          title: 'Smart DPP — $_selectedSubject',
+          examType: 'JEE',
+          classLevel: 'Class 12',
+          subjectId: _selectedSubject,
+          subjectName: _selectedSubject,
+          chapterName: _chapterController.text.trim(),
+          topics: topics,
+          difficulty: mappedDifficulty,
+          questionCount: questionsCount,
+          timeMinutes: timeMins,
+          marksPerQuestion: (totalMarks ~/ questionsCount).clamp(1, 5),
+          negativeMarking: 1.0,
+          questionTypes: const ['Single Correct'],
+          aiOption: 'Conceptual',
+        );
   }
 
-  void _onExamChanged(String exam) {
-    setState(() {
-      _selectedExam = exam;
-      final active = _getSubjectsForExam(exam);
-      if (!active.contains(_selectedSubject)) {
-        _selectedSubject = active.first;
-      }
+  bool _isLoadingDialogShowing = false;
+
+  void _showLoadingDialog() {
+    if (_isLoadingDialogShowing || !mounted) return;
+    _isLoadingDialogShowing = true;
+
+    showDialog(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withValues(alpha: 0.65),
+      builder: (dialogCtx) {
+        final isDark = Theme.of(dialogCtx).brightness == Brightness.dark;
+        final cardBg = isDark ? const Color(0xFF1C1C1E) : Colors.white;
+        final borderC = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+
+        return PopScope(
+          canPop: false,
+          child: Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 32),
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: borderC),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Lottie.asset(
+                    'assets/Animation/sparkles_loop_loader_ai.lottie',
+                    width: 110,
+                    height: 110,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'AI Formulation in progress...',
+                    style: TextStyle(
+                      fontFamily: 'SF Pro Text',
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: isDark ? Colors.white : const Color(0xFF1D1D1F),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Composing original questions, options, step-by-step solutions and learning outcomes.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'SF Pro Text',
+                      fontSize: 12,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    ).then((_) {
+      _isLoadingDialogShowing = false;
     });
+  }
+
+  void _hideLoadingDialog() {
+    if (_isLoadingDialogShowing && mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+      _isLoadingDialogShowing = false;
+    }
   }
 
   @override
@@ -78,555 +165,487 @@ class _DppDashboardScreenState extends ConsumerState<DppDashboardScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final state = ref.watch(dppGeneratorControllerProvider);
 
-    // Watch for success generation and navigate
+    // Success navigation, dialog management and notifications
     ref.listen(dppGeneratorControllerProvider, (previous, next) {
-      if (next.generatedDpp != null && !next.isLoading) {
+      if (next.isGenerating) {
+        _showLoadingDialog();
+      } else {
+        _hideLoadingDialog();
+      }
+
+      if (next.generatedDpp != null && previous?.isGenerating == true && !next.isGenerating) {
         context.push('/admin/dpp/preview');
       }
-      if (next.error != null) {
+      if (next.error != null && next.error != previous?.error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(next.error!), backgroundColor: Colors.redAccent),
         );
       }
     });
 
-    final scaffoldBgColor = isDark ? const Color(0xFF151516) : const Color(0xFFFAFAFC);
+    // Apple-spec colors
+    final scaffoldBgColor = isDark ? const Color(0xFF000000) : const Color(0xFFF5F5F7);
     final cardBgColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
-    final inputFillColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7);
-    final borderColor = isDark ? const Color(0xFF3C3C3E) : const Color(0xFFE5E5EA);
-    final textHeaderColor = isDark ? Colors.grey.shade400 : const Color(0xFF6E6E73);
-    const deepBlueColor = Color(0xFF0038A8);
+    final borderColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    const appleBlue = Color(0xFF0066CC); // Signature Action Blue
+
+    List<Color> getDifficultyGradient(String diff, bool isSel) {
+      if (!isSel) {
+        return [cardBgColor, cardBgColor];
+      }
+      return const [appleBlue, appleBlue];
+    }
 
     return Scaffold(
       backgroundColor: scaffoldBgColor,
-      appBar: AppBar(
-        backgroundColor: scaffoldBgColor,
-        elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
-        ),
-        title: const Text(
-          'NA Smart DPP',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 22,
-            letterSpacing: -0.6,
-            color: Color(0xFF0F172A),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.history_rounded, size: 24),
-            onPressed: () => context.push('/admin/dpp/history'),
-          )
-        ],
-      ),
-      body: Stack(
-        children: [
-          Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 110),
-              children: [
-                // SECTION: EXAM
-                _buildSectionLabel('EXAM', textHeaderColor),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 12,
-                  children: _exams.map((exam) {
-                    final isSel = _selectedExam == exam;
-                    return ChoiceChip(
-                      label: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                        child: Text(
-                          exam,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: isSel ? Colors.white : const Color(0xFF6E6E73),
-                          ),
-                        ),
-                      ),
-                      selected: isSel,
-                      selectedColor: deepBlueColor,
-                      backgroundColor: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7),
-                      checkmarkColor: Colors.transparent,
-                      showCheckmark: false,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(9999),
-                        side: BorderSide(
-                          color: isSel ? deepBlueColor : borderColor,
-                          width: 1,
-                        ),
-                      ),
-                      onSelected: (val) {
-                        if (val) _onExamChanged(exam);
-                      },
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 20),
-
-                // SECTION: SUBJECT
-                _buildSectionLabel('SUBJECT', textHeaderColor),
-                const SizedBox(height: 8),
-                Wrap(
-                  children: _allPossibleSubjects.map((sub) {
-                    final isActive = _getSubjectsForExam(_selectedExam).contains(sub);
-                    return _buildAnimatedSubjectChip(
-                      sub: sub,
-                      isActive: isActive,
-                      isDark: isDark,
-                      deepBlueColor: deepBlueColor,
-                      borderColor: borderColor,
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 20),
-
-                // SECTION: CHAPTER NAME
-                _buildSectionLabel('CHAPTER NAME', textHeaderColor),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _chapterController,
-                  decoration: InputDecoration(
-                    hintText: 'e.g. Kinematics, Thermodynamics',
-                    hintStyle: TextStyle(color: isDark ? Colors.grey.shade600 : Colors.grey.shade500, fontSize: 15),
-                    filled: true,
-                    fillColor: inputFillColor,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: borderColor),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: borderColor),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: deepBlueColor, width: 1.5),
-                    ),
-                  ),
-                  validator: (v) => v == null || v.trim().isEmpty ? 'Chapter name is required' : null,
-                ),
-                const SizedBox(height: 20),
-
-                // SECTION: TOPICS
-                _buildSectionLabel('TOPICS (comma-separated, optional)', textHeaderColor),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _topicsController,
-                  decoration: InputDecoration(
-                    hintText: 'e.g. Projectile Motion, Relative Velocity',
-                    hintStyle: TextStyle(color: isDark ? Colors.grey.shade600 : Colors.grey.shade500, fontSize: 15),
-                    filled: true,
-                    fillColor: inputFillColor,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: borderColor),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: borderColor),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: deepBlueColor, width: 1.5),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // SECTION: DIFFICULTY LEVEL
-                _buildSectionLabel('DIFFICULTY LEVEL', textHeaderColor),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildDifficultyCard(
-                        title: 'Basic',
-                        percentage: '70% easy • 25%\nmed • 5% hard',
-                        dotColor: Colors.green,
-                        isSelected: _selectedDifficulty == 'Basic',
-                        onTap: () => setState(() => _selectedDifficulty = 'Basic'),
-                        isDark: isDark,
-                        borderColor: borderColor,
-                        cardBgColor: cardBgColor,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildDifficultyCard(
-                        title: 'Medium',
-                        percentage: '30% easy • 50%\nmed • 20% hard',
-                        dotColor: Colors.orange,
-                        isSelected: _selectedDifficulty == 'Medium',
-                        onTap: () => setState(() => _selectedDifficulty = 'Medium'),
-                        isDark: isDark,
-                        borderColor: borderColor,
-                        cardBgColor: cardBgColor,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildDifficultyCard(
-                        title: 'High',
-                        percentage: '10% easy • 35%\nmed • 55% hard',
-                        dotColor: Colors.red,
-                        isSelected: _selectedDifficulty == 'High',
-                        onTap: () => setState(() => _selectedDifficulty = 'High'),
-                        isDark: isDark,
-                        borderColor: borderColor,
-                        cardBgColor: cardBgColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // SECTION: BOTTOM ROW INPUTS
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Questions Count
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionLabel('# QUESTIONS', textHeaderColor),
-                          const SizedBox(height: 6),
-                          TextFormField(
-                            controller: _questionsController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: inputFillColor,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: borderColor),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: borderColor),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: deepBlueColor, width: 1.5),
-                              ),
-                            ),
-                            validator: (v) {
-                              if (v == null || v.isEmpty) return 'Required';
-                              final val = int.tryParse(v);
-                              if (val == null || val < 1 || val > 200) return '1-200';
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '1-200',
-                            style: TextStyle(color: isDark ? Colors.grey.shade600 : Colors.grey.shade500, fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Allowed Time
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionLabel('TIME (min)', textHeaderColor),
-                          const SizedBox(height: 6),
-                          TextFormField(
-                            controller: _timeController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: inputFillColor,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: borderColor),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: borderColor),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: deepBlueColor, width: 1.5),
-                              ),
-                            ),
-                            validator: (v) {
-                              if (v == null || v.isEmpty) return 'Required';
-                              final val = int.tryParse(v);
-                              if (val == null || val < 5 || val > 240) return '5-240';
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '5-240',
-                            style: TextStyle(color: isDark ? Colors.grey.shade600 : Colors.grey.shade500, fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    // Total Marks
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildSectionLabel('TOTAL MARKS', textHeaderColor),
-                          const SizedBox(height: 6),
-                          TextFormField(
-                            controller: _marksController,
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              hintText: 'auto',
-                              hintStyle: TextStyle(color: isDark ? Colors.grey.shade600 : Colors.grey.shade500, fontSize: 15),
-                              filled: true,
-                              fillColor: inputFillColor,
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: borderColor),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: borderColor),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: deepBlueColor, width: 1.5),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'optional',
-                            style: TextStyle(color: isDark ? Colors.grey.shade600 : Colors.grey.shade500, fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Bottom Action Button Layer
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-              decoration: BoxDecoration(
-                color: scaffoldBgColor,
-                border: Border(top: BorderSide(color: borderColor)),
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: deepBlueColor,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: state.isGenerating ? null : _submitGenerate,
-                  child: const Row(
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Form(
+              key: _formKey,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
+                children: [
+                  // Title Header (SF Pro Display, weight 600, negative letter-spacing)
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.auto_awesome, size: 20),
-                      SizedBox(width: 8),
+                      const Icon(Icons.auto_awesome_rounded, color: appleBlue, size: 22),
+                      const SizedBox(width: 8),
                       Text(
-                        'GENERATE WITH NA',
-                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, letterSpacing: 0.5),
+                        'NA SMART-DPP',
+                        style: TextStyle(
+                          fontFamily: 'SF Pro Display',
+                          fontWeight: FontWeight.w600,
+                          fontSize: 22,
+                          letterSpacing: -0.4,
+                          color: isDark ? Colors.white : const Color(0xFF1D1D1F),
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ),
-            ),
-          ),
+                  const SizedBox(height: 16),
 
-          // Shimmer loading / AI Thinking Overlay
-          if (state.isGenerating)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black.withOpacity(0.7),
-                child: Center(
-                  child: Card(
-                    margin: const EdgeInsets.symmetric(horizontal: 40),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-                    child: Padding(
-                      padding: const EdgeInsets.all(32.0),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const SizedBox(
-                            width: 60,
-                            height: 60,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 4,
-                              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF0038A8)),
+                  // 1. SUBJECT SELECTOR (2x2 Pill Grid with Solid Gradients)
+                  _buildSectionLabel('Subject', isDark),
+                  const SizedBox(height: 8),
+                  SubjectGridSelector(
+                    selectedSubject: _selectedSubject,
+                    isDark: isDark,
+                    onSubjectSelected: (sub) => setState(() => _selectedSubject = sub),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // 2. DIFFICULTY LEVEL (Pills)
+                  _buildSectionLabel('Difficulty', isDark),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: ['Basic', 'Intermediate', 'Advance'].map((diff) {
+                      final isSel = _selectedDifficulty == diff;
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                          child: AnimatedTapScale(
+                            onTap: () => setState(() => _selectedDifficulty = diff),
+                            child: Container(
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: getDifficultyGradient(diff, isSel),
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(9999), // pill
+                                border: Border.all(
+                                  color: isSel ? Colors.transparent : borderColor,
+                                  width: 1.0,
+                                ),
+                              ),
+                              child: Text(
+                                diff,
+                                style: TextStyle(
+                                  fontFamily: 'SF Pro Text',
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                  color: isSel ? Colors.white : (isDark ? const Color(0xFFCCCCCC) : const Color(0xFF1D1D1F)),
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 24),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 4. CHAPTER & TOPIC ROW
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionLabel('Chapter', isDark),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _chapterController,
+                              style: TextStyle(
+                                fontFamily: 'SF Pro Text',
+                                color: isDark ? Colors.white : const Color(0xFF1D1D1F),
+                                fontSize: 14,
+                              ),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: cardBgColor,
+                                hintText: 'e.g. Kinematics',
+                                hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: borderColor),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: borderColor),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: appleBlue, width: 1.5),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.0),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                                ),
+                                errorStyle: const TextStyle(
+                                  fontFamily: 'SF Pro Text',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                              validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionLabel('Topic (optional)', isDark),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _topicsController,
+                              style: TextStyle(
+                                fontFamily: 'SF Pro Text',
+                                color: isDark ? Colors.white : const Color(0xFF1D1D1F),
+                                fontSize: 14,
+                              ),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: cardBgColor,
+                                hintText: 'e.g. Projectile',
+                                hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: borderColor),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: borderColor),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: appleBlue, width: 1.5),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.0),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                                ),
+                                errorStyle: const TextStyle(
+                                  fontFamily: 'SF Pro Text',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // 5. QUESTIONS, MARKS, AND TIME ROW
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Questions Count
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionLabel('Questions', isDark),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _questionsController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              style: TextStyle(
+                                fontFamily: 'SF Pro Text',
+                                color: isDark ? Colors.white : const Color(0xFF1D1D1F),
+                                fontSize: 14,
+                              ),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: cardBgColor,
+                                hintText: 'e.g. 10',
+                                hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: borderColor),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: borderColor),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: appleBlue, width: 1.5),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.0),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                                ),
+                                errorStyle: const TextStyle(
+                                  fontFamily: 'SF Pro Text',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                              validator: (v) {
+                                if (v == null || v.isEmpty) return 'Required';
+                                final num = int.tryParse(v);
+                                if (num == null || num < 1) return 'Min 1';
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Marks
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionLabel('Marks', isDark),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _marksController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              style: TextStyle(
+                                fontFamily: 'SF Pro Text',
+                                color: isDark ? Colors.white : const Color(0xFF1D1D1F),
+                                fontSize: 14,
+                              ),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: cardBgColor,
+                                hintText: 'auto',
+                                hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: borderColor),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: borderColor),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: appleBlue, width: 1.5),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.0),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                                ),
+                                errorStyle: const TextStyle(
+                                  fontFamily: 'SF Pro Text',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Time Given
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildSectionLabel('Time (min)', isDark),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _timeController,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              style: TextStyle(
+                                fontFamily: 'SF Pro Text',
+                                color: isDark ? Colors.white : const Color(0xFF1D1D1F),
+                                fontSize: 14,
+                              ),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: cardBgColor,
+                                hintText: 'e.g. 45',
+                                hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: borderColor),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: BorderSide(color: borderColor),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: appleBlue, width: 1.5),
+                                ),
+                                errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.0),
+                                ),
+                                focusedErrorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                  borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+                                ),
+                                errorStyle: const TextStyle(
+                                  fontFamily: 'SF Pro Text',
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                              validator: (v) {
+                                if (v == null || v.isEmpty) return 'Required';
+                                final num = int.tryParse(v);
+                                if (num == null || num < 1) return 'Min 1';
+                                return null;
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 6. PREVIOUS DPP BUTTON (Ghost Pill Style)
+                  AnimatedTapScale(
+                    onTap: () => context.push('/admin/dpp/history'),
+                    child: Container(
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1D1D1F) : Colors.white,
+                        borderRadius: BorderRadius.circular(9999), // pill
+                        border: Border.all(color: borderColor, width: 1.0),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.history_rounded, size: 18, color: isDark ? Colors.white70 : const Color(0xFF1D1D1F)),
+                          const SizedBox(width: 6),
                           Text(
-                            'AI Formulation in progress...',
-                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                            'Previous DPP',
+                            style: TextStyle(
+                              fontFamily: 'SF Pro Text',
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              color: isDark ? Colors.white : const Color(0xFF1D1D1F),
+                            ),
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Composing original questions, options, step-by-step solutions and learning outcomes.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 80),
+                ],
+              ),
+            ),
+
+            // Bottom Action Button Layer
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                decoration: BoxDecoration(
+                  color: scaffoldBgColor,
+                  border: Border(top: BorderSide(color: borderColor)),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: AnimatedTapScale(
+                    onTap: state.isGenerating ? () {} : _submitGenerate,
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: state.isGenerating ? appleBlue.withValues(alpha: 0.5) : appleBlue,
+                        borderRadius: BorderRadius.circular(9999), // Primary action is pill-shaped
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.auto_awesome_rounded, size: 18, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text(
+                            'GENERATE WITH NA',
+                            style: TextStyle(
+                              fontFamily: 'SF Pro Text',
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              letterSpacing: -0.1,
+                              color: Colors.white,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionLabel(String text, Color color) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontWeight: FontWeight.w800,
-        fontSize: 12,
-        color: color,
-        letterSpacing: 0.8,
-      ),
-    );
-  }
-
-  Widget _buildAnimatedSubjectChip({
-    required String sub,
-    required bool isActive,
-    required bool isDark,
-    required Color deepBlueColor,
-    required Color borderColor,
-  }) {
-    final isSel = _selectedSubject == sub;
-    return AnimatedAlign(
-      alignment: Alignment.centerLeft,
-      duration: const Duration(milliseconds: 300),
-      widthFactor: isActive ? 1.0 : 0.0,
-      curve: Curves.easeInOut,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 250),
-        opacity: isActive ? 1.0 : 0.0,
-        curve: Curves.easeInOut,
-        child: ClipRect(
-          child: Padding(
-            padding: EdgeInsets.only(right: isActive ? 12.0 : 0.0, bottom: isActive ? 8.0 : 0.0),
-            child: ChoiceChip(
-              label: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                child: Text(
-                  sub,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: isSel ? Colors.white : const Color(0xFF6E6E73),
-                  ),
-                ),
-              ),
-              selected: isSel,
-              selectedColor: deepBlueColor,
-              backgroundColor: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7),
-              checkmarkColor: Colors.transparent,
-              showCheckmark: false,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(9999),
-                side: BorderSide(
-                  color: isSel ? deepBlueColor : borderColor,
-                  width: 1,
-                ),
-              ),
-              onSelected: (val) {
-                if (val && isActive) setState(() => _selectedSubject = sub);
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDifficultyCard({
-    required String title,
-    required String percentage,
-    required Color dotColor,
-    required bool isSelected,
-    required VoidCallback onTap,
-    required bool isDark,
-    required Color borderColor,
-    required Color cardBgColor,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-        decoration: BoxDecoration(
-          color: cardBgColor,
-          border: Border.all(
-            color: isSelected ? const Color(0xFFF1A80A) : borderColor,
-            width: isSelected ? 2.0 : 1.0,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFF1A80A).withOpacity(0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  )
-                ]
-              : null,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(radius: 5, backgroundColor: dotColor),
-                const SizedBox(width: 6),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 15,
-                color: isSelected ? (isDark ? Colors.white : const Color(0xFF0F172A)) : const Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              percentage,
-              style: TextStyle(
-                fontSize: 11,
-                color: isDark ? Colors.grey.shade400 : const Color(0xFF8E8E93),
-                height: 1.3,
               ),
             ),
           ],
@@ -635,43 +654,482 @@ class _DppDashboardScreenState extends ConsumerState<DppDashboardScreen> {
     );
   }
 
-  void _submitGenerate() {
-    if (!_formKey.currentState!.validate()) return;
+  Widget _buildSectionLabel(String label, bool isDark) {
+    return Text(
+      label,
+      style: TextStyle(
+        fontFamily: 'SF Pro Text',
+        fontWeight: FontWeight.w600,
+        fontSize: 13,
+        letterSpacing: -0.1,
+        color: isDark ? const Color(0xFFCCCCCC) : const Color(0xFF1D1D1F),
+      ),
+    );
+  }
+}
 
-    final selectedSub = _selectedSubject;
-    if (selectedSub == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a subject')),
-      );
-      return;
-    }
+// ── 2x2 SUBJECT GRID WITH SOLID GRADIENT PILL CARDS ────────────────────────
 
-    final List<String> topics = _topicsController.text
-        .split(',')
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toList();
+class SubjectGridSelector extends StatelessWidget {
+  final String selectedSubject;
+  final bool isDark;
+  final ValueChanged<String> onSubjectSelected;
 
-    final questionsCount = int.parse(_questionsController.text);
-    final timeMins = int.parse(_timeController.text);
-    final totalMarks = int.tryParse(_marksController.text) ?? (questionsCount * 4); // fallback marks default to 4 per question
+  const SubjectGridSelector({
+    super.key,
+    required this.selectedSubject,
+    required this.isDark,
+    required this.onSubjectSelected,
+  });
 
-    ref.read(dppGeneratorControllerProvider.notifier).generateDpp(
-          title: 'Smart DPP Set — $_selectedExam',
-          examType: _selectedExam,
-          classLevel: 'Class 12', // default class level
-          subjectId: selectedSub,
-          subjectName: selectedSub,
-          chapterName: _chapterController.text.trim(),
-          topics: topics,
-          difficulty: _selectedDifficulty,
-          questionCount: questionsCount,
-          timeMinutes: timeMins,
-          marksPerQuestion: (totalMarks ~/ questionsCount).clamp(1, 5), // auto-compute marks per question
-          negativeMarking: 1.0, // default negative marking
-          questionTypes: const ['Single Correct'], // default question types
-          aiOption: 'Conceptual', // default option pedagogy
-          additionalInstructions: null,
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _SubjectCardPill(
+                subject: 'Physics',
+                isSelected: selectedSubject.toLowerCase() == 'physics',
+                isDark: isDark,
+                onTap: () => onSubjectSelected('Physics'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _SubjectCardPill(
+                subject: 'Chemistry',
+                isSelected: selectedSubject.toLowerCase() == 'chemistry',
+                isDark: isDark,
+                onTap: () => onSubjectSelected('Chemistry'),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _SubjectCardPill(
+                subject: 'Mathematics',
+                isSelected: selectedSubject.toLowerCase() == 'mathematics',
+                isDark: isDark,
+                onTap: () => onSubjectSelected('Mathematics'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _SubjectCardPill(
+                subject: 'Biology',
+                isSelected: selectedSubject.toLowerCase() == 'biology',
+                isDark: isDark,
+                onTap: () => onSubjectSelected('Biology'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SubjectCardPill extends StatelessWidget {
+  final String subject;
+  final bool isSelected;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _SubjectCardPill({
+    required this.subject,
+    required this.isSelected,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final meta = _getSubjectMeta(subject);
+
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        height: 56,
+        clipBehavior: Clip.antiAlias,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: meta.gradientColors,
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isSelected
+              ? null
+              : (isDark ? const Color(0xFF1C1C1E) : Colors.white),
+          borderRadius: BorderRadius.circular(9999), // Pill shape
+          border: Border.all(
+            color: isSelected
+                ? meta.gradientColors.first
+                : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA)),
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Background Watermark Motif
+            Positioned.fill(
+              child: CustomPaint(
+                painter: meta.painter(
+                  isSelected
+                      ? Colors.white.withValues(alpha: 0.22)
+                      : meta.gradientColors.first.withValues(alpha: isDark ? 0.12 : 0.08),
+                ),
+              ),
+            ),
+
+            // Card Content (Icon, Label, Checkmark) - Perfectly Centered
+            Align(
+              alignment: Alignment.center,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Icon Badge (Centered 34x34 Circle)
+                    Container(
+                      width: 34,
+                      height: 34,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.white.withValues(alpha: 0.25)
+                            : meta.gradientColors.first.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        meta.icon,
+                        size: 18,
+                        color: isSelected ? Colors.white : meta.gradientColors.first,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Label Text
+                    Expanded(
+                      child: Text(
+                        subject,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: 'SF Pro Display',
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                          fontSize: 14,
+                          letterSpacing: -0.2,
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark ? const Color(0xFFEEEEEE) : const Color(0xFF1D1D1F)),
+                        ),
+                      ),
+                    ),
+
+                    // Active Checkmark Indicator
+                    if (isSelected) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        width: 20,
+                        height: 20,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.check_rounded,
+                          size: 13,
+                          color: meta.gradientColors.first,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  _SubjectMeta _getSubjectMeta(String subject) {
+    switch (subject.toLowerCase()) {
+      case 'physics':
+        return _SubjectMeta(
+          icon: Icons.alt_route_rounded,
+          gradientColors: const [Color(0xFF0052D4), Color(0xFF4364F7)],
+          painter: (color) => PhysicsTrajectoryPainter(color: color),
         );
+      case 'chemistry':
+        return _SubjectMeta(
+          icon: Icons.science_rounded,
+          gradientColors: const [Color(0xFF11998E), Color(0xFF38EF7D)],
+          painter: (color) => ChemistryCarbonChainPainter(color: color),
+        );
+      case 'mathematics':
+      case 'maths':
+      case 'math':
+        return _SubjectMeta(
+          icon: Icons.functions_rounded,
+          gradientColors: const [Color(0xFF7F00FF), Color(0xFFE100FF)],
+          painter: (color) => MathFormulasPainter(color: color),
+        );
+      case 'biology':
+        return _SubjectMeta(
+          icon: Icons.monitor_heart_rounded,
+          gradientColors: const [Color(0xFFFF0844), Color(0xFFFFB199)],
+          painter: (color) => BiologyHeartPulsePainter(color: color),
+        );
+      default:
+        return _SubjectMeta(
+          icon: Icons.book_rounded,
+          gradientColors: const [Color(0xFF0066CC), Color(0xFF5AC8FA)],
+          painter: (color) => PhysicsTrajectoryPainter(color: color),
+        );
+    }
+  }
+}
+
+class _SubjectMeta {
+  final IconData icon;
+  final List<Color> gradientColors;
+  final CustomPainter Function(Color color) painter;
+
+  _SubjectMeta({
+    required this.icon,
+    required this.gradientColors,
+    required this.painter,
+  });
+}
+
+// ── CUSTOM WATERMARK PAINTERS ──────────────────────────────────────────────
+
+/// Physics Background Motif: Projectile Motion Arc Trajectory Curve
+class PhysicsTrajectoryPainter extends CustomPainter {
+  final Color color;
+  PhysicsTrajectoryPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path();
+    final startX = size.width * 0.45;
+    final startY = size.height * 0.85;
+    final controlX = size.width * 0.72;
+    final controlY = size.height * 0.12;
+    final endX = size.width * 0.95;
+    final endY = size.height * 0.85;
+
+    path.moveTo(startX, startY);
+    path.quadraticBezierTo(controlX, controlY, endX, endY);
+    canvas.drawPath(path, paint);
+
+    // Initial Velocity Vector Arrow at origin
+    final arrowPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawLine(Offset(startX, startY), Offset(startX + 18, startY - 14), arrowPaint);
+    canvas.drawLine(Offset(startX + 18, startY - 14), Offset(startX + 12, startY - 14), arrowPaint);
+    canvas.drawLine(Offset(startX + 18, startY - 14), Offset(startX + 16, startY - 8), arrowPaint);
+
+    // Origin & Peak dots
+    canvas.drawCircle(Offset(startX, startY), 2.5, Paint()..color = color..style = PaintingStyle.fill);
+    canvas.drawCircle(Offset(controlX, size.height * 0.48), 2.0, Paint()..color = color..style = PaintingStyle.fill);
+  }
+
+  @override
+  bool shouldRepaint(covariant PhysicsTrajectoryPainter oldDelegate) => oldDelegate.color != color;
+}
+
+/// Chemistry Background Motif: Carbon Chain & Benzene Ring
+class ChemistryCarbonChainPainter extends CustomPainter {
+  final Color color;
+  ChemistryCarbonChainPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    final cx = size.width * 0.80;
+    final cy = size.height * 0.50;
+    final r = 16.0;
+
+    // Benzene Hexagon Ring
+    final hexPath = Path();
+    for (int i = 0; i < 6; i++) {
+      final angle = (i * 60 - 30) * math.pi / 180;
+      final x = cx + r * math.cos(angle);
+      final y = cy + r * math.sin(angle);
+      if (i == 0) {
+        hexPath.moveTo(x, y);
+      } else {
+        hexPath.lineTo(x, y);
+      }
+    }
+    hexPath.close();
+    canvas.drawPath(hexPath, paint);
+
+    // Inner aromatic bond circle
+    canvas.drawCircle(Offset(cx, cy), r * 0.55, paint);
+
+    // Carbon chain extension bonds
+    canvas.drawLine(Offset(cx - r, cy), Offset(cx - r - 12, cy - 8), paint);
+    canvas.drawCircle(Offset(cx - r - 12, cy - 8), 2.2, Paint()..color = color..style = PaintingStyle.fill);
+
+    canvas.drawLine(Offset(cx + r, cy), Offset(cx + r + 10, cy + 8), paint);
+    canvas.drawCircle(Offset(cx + r + 10, cy + 8), 2.2, Paint()..color = color..style = PaintingStyle.fill);
+  }
+
+  @override
+  bool shouldRepaint(covariant ChemistryCarbonChainPainter oldDelegate) => oldDelegate.color != color;
+}
+
+/// Mathematics Background Motif: Formulas & Notation (∫, π, ∑)
+class MathFormulasPainter extends CustomPainter {
+  final Color color;
+  MathFormulasPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+
+    // Integral notation ∫
+    textPainter.text = TextSpan(
+      text: '∫',
+      style: TextStyle(
+        fontFamily: 'SF Pro Display',
+        fontSize: 32,
+        fontWeight: FontWeight.w300,
+        color: color,
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(size.width * 0.66, size.height * 0.08));
+
+    // Pi symbol π
+    textPainter.text = TextSpan(
+      text: 'π',
+      style: TextStyle(
+        fontFamily: 'SF Pro Display',
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: color,
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(size.width * 0.85, size.height * 0.18));
+
+    // Summation ∑
+    textPainter.text = TextSpan(
+      text: '∑',
+      style: TextStyle(
+        fontFamily: 'SF Pro Display',
+        fontSize: 22,
+        fontWeight: FontWeight.w400,
+        color: color,
+      ),
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(size.width * 0.78, size.height * 0.48));
+  }
+
+  @override
+  bool shouldRepaint(covariant MathFormulasPainter oldDelegate) => oldDelegate.color != color;
+}
+
+/// Biology Background Motif: Heart Silhouette & ECG Pulse Wave
+class BiologyHeartPulsePainter extends CustomPainter {
+  final Color color;
+  BiologyHeartPulsePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // ECG Heart Pulse line
+    final path = Path();
+    final startX = size.width * 0.40;
+    final cy = size.height * 0.58;
+
+    path.moveTo(startX, cy);
+    path.lineTo(startX + 12, cy);
+    path.lineTo(startX + 16, cy - 7);
+    path.lineTo(startX + 20, cy + 10);
+    path.lineTo(startX + 26, cy - 20);
+    path.lineTo(startX + 32, cy + 8);
+    path.lineTo(startX + 37, cy);
+    path.lineTo(startX + 55, cy);
+
+    canvas.drawPath(path, paint);
+
+    // Heart silhouette on top right
+    final heartPath = Path();
+    final hx = size.width * 0.84;
+    final hy = size.height * 0.28;
+
+    heartPath.moveTo(hx, hy + 5);
+    heartPath.cubicTo(hx - 7, hy - 5, hx - 12, hy + 5, hx, hy + 14);
+    heartPath.cubicTo(hx + 12, hy + 5, hx + 7, hy - 5, hx, hy + 5);
+
+    canvas.drawPath(heartPath, Paint()..color = color..style = PaintingStyle.fill);
+  }
+
+  @override
+  bool shouldRepaint(covariant BiologyHeartPulsePainter oldDelegate) => oldDelegate.color != color;
+}
+
+// Custom interactive wrapper adhering to transform: scale(0.95) rule
+class AnimatedTapScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const AnimatedTapScale({super.key, required this.child, required this.onTap});
+
+  @override
+  State<AnimatedTapScale> createState() => _AnimatedTapScaleState();
+}
+
+class _AnimatedTapScaleState extends State<AnimatedTapScale> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) => setState(() => _isPressed = false),
+      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.95 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        curve: Curves.easeOutCubic,
+        child: widget.child,
+      ),
+    );
   }
 }

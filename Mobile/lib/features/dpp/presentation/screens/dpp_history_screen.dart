@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/pdf_service.dart';
 import '../../../../core/widgets/app_dropdown.dart';
+import '../../../../core/utils/toast_utils.dart';
 import '../controllers/dpp_history_controller.dart';
 import '../controllers/dpp_generator_controller.dart';
 import '../../data/models/dpp_model.dart';
@@ -231,9 +232,7 @@ class DppHistoryScreen extends ConsumerWidget {
                               .read(dppHistoryControllerProvider.notifier)
                               .duplicateDpp(dpp);
                           if (duplicated != null && context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('DPP duplicated as Draft.')),
-                            );
+                            ToastUtils.showSuccess(context, 'DPP duplicated as Draft.');
                           }
                         },
                       ),
@@ -282,9 +281,7 @@ class DppHistoryScreen extends ConsumerWidget {
               Navigator.pop(ctx);
               await ref.read(dppHistoryControllerProvider.notifier).deleteDpp(dpp.id);
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('DPP deleted successfully.')),
-                );
+                ToastUtils.showSuccess(context, 'DPP deleted successfully.');
               }
             },
             child: const Text('Delete', style: TextStyle(color: Colors.white)),

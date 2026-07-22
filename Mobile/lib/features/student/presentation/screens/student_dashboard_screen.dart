@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/supabase_providers.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/floating_nav_bar.dart';
 import '../../../../core/widgets/grid_background.dart';
 import '../dashboard/controllers/dashboard_controller.dart';
@@ -18,13 +19,20 @@ class StudentDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final batchAssignedAsync = ref.watch(studentBatchAssignedProvider);
 
-    return batchAssignedAsync.when(
-      loading: () => const _LoadingGate(),
-      error: (_, __) => const _NoBatchScreen(isError: true),
-      data: (isAssigned) {
-        if (!isAssigned) return const _NoBatchScreen(isError: false);
-        return const _StudentDashboard();
-      },
+    return Theme(
+      data: AppTheme.lightTheme,
+      child: Builder(
+        builder: (context) {
+          return batchAssignedAsync.when(
+            loading: () => const _LoadingGate(),
+            error: (_, __) => const _NoBatchScreen(isError: true),
+            data: (isAssigned) {
+              if (!isAssigned) return const _NoBatchScreen(isError: false);
+              return const _StudentDashboard();
+            },
+          );
+        },
+      ),
     );
   }
 }

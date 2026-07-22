@@ -8,6 +8,7 @@ import '../../domain/repositories/batch_repository.dart';
 import '../models/batch_model.dart';
 import '../models/batch_student_model.dart';
 import '../models/timetable_lecture_model.dart';
+import '../models/exam_model.dart';
 
 final batchRepositoryProvider = Provider<BatchRepository>((ref) {
   final isSupabaseReady = ref.watch(supabaseInitializedProvider);
@@ -325,6 +326,7 @@ class SupabaseBatchRepositoryImpl implements BatchRepository {
           startTime: json['start_time'] as String? ?? '',
           endTime: json['end_time'] as String? ?? '',
           lectureDate: json['lecture_date'] as String?,
+          isCancelled: json['is_cancelled'] as bool? ?? false,
         );
       }).toList();
     } catch (e) {
@@ -467,7 +469,7 @@ class SupabaseBatchRepositoryImpl implements BatchRepository {
   @override
   Future<void> deleteLecture(String lectureId) async {
     try {
-      await supabaseClient.from('timetable').delete().eq('id', lectureId);
+      await supabaseClient.from('timetable').update({'is_cancelled': true}).eq('id', lectureId);
     } catch (e) {
       throw AuthException('Failed to delete lecture: $e');
     }
@@ -521,6 +523,95 @@ class SupabaseBatchRepositoryImpl implements BatchRepository {
       return hour * 60 + minute;
     } catch (_) {
       return null;
+    }
+  }
+
+  @override
+  Future<List<ExamModel>> fetchExams(String batchId) async {
+    try {
+      final testsRes = await supabaseClient
+          .from('tests')
+          .select('*, subjects(name)')
+          .eq('batch_id', batchId);
+
+      if ((testsRes as List).isNotEmpty) {
+        return (testsRes as List).map((json) {
+          final Map<String, dynamic> adaptedJson = Map<String, dynamic>.from(json);
+          adaptedJson['name'] = json['title'] ?? json['name'] ?? '';
+          adaptedJson['exam_date'] = json['test_date'] ?? json['exam_date'] ?? '';
+          adaptedJson['exam_time'] = json['timing'] ?? json['exam_time'] ?? '';
+          adaptedJson['max_marks'] = json['total_marks'] ?? json['max_marks'] ?? 100;
+          return ExamModel.fromJson(adaptedJson);
+        }).toList();
+      }
+    } catch (_) {}
+
+    try {
+      final res = await supabaseClient
+          .from('exams')
+          .select('*, subjects(name)')
+          .eq('batch_id', batchId);
+      return (res as List).map((json) => ExamModel.fromJson(json)).toList();
+    } catch (e) {
+      throw AuthException("Failed to fetch tests: $e");
+    }
+  }
+
+  @override
+  Future<void> addExam(ExamModel exam) async {
+    try {
+      // 1. Insert into dedicated tests table
+      try {
+        await supabaseClient.from('tests').insert({
+          'batch_id': exam.batchId,
+          'subject_id': exam.subjectId.isEmpty ? null : exam.subjectId,
+          'title': exam.name,
+          'test_date': exam.examDate,
+          'timing': exam.examTime,
+          'total_marks': exam.maxMarks,
+          'is_cancelled': exam.isCancelled,
+        });
+      } catch (_) {}
+
+      // 2. Insert into exams table for compatibility
+      await supabaseClient.from('exams').insert({
+        'batch_id': exam.batchId,
+        'subject_id': exam.subjectId.isEmpty ? null : exam.subjectId,
+        'name': exam.name,
+        'exam_date': exam.examDate,
+        'max_marks': exam.maxMarks,
+        'exam_time': exam.examTime,
+        'is_cancelled': exam.isCancelled,
+      });
+    } catch (e) {
+      throw AuthException("Failed to add test: $e");
+    }
+  }
+
+  @override
+  Future<void> updateExam(ExamModel exam) async {
+    try {
+      try {
+        await supabaseClient.from('tests').update({
+          'subject_id': exam.subjectId.isEmpty ? null : exam.subjectId,
+          'title': exam.name,
+          'test_date': exam.examDate,
+          'timing': exam.examTime,
+          'total_marks': exam.maxMarks,
+          'is_cancelled': exam.isCancelled,
+        }).eq('id', exam.id);
+      } catch (_) {}
+
+      await supabaseClient.from('exams').update({
+        'subject_id': exam.subjectId.isEmpty ? null : exam.subjectId,
+        'name': exam.name,
+        'exam_date': exam.examDate,
+        'max_marks': exam.maxMarks,
+        'exam_time': exam.examTime,
+        'is_cancelled': exam.isCancelled,
+      }).eq('id', exam.id);
+    } catch (e) {
+      throw AuthException("Failed to update test: $e");
     }
   }
 }
@@ -629,6 +720,31 @@ class MockBatchRepository implements BatchRepository {
       feeStatus: 'Paid',
       classLevel: '12',
       examType: 'JEE',
+    ),
+  ];
+
+  final List<ExamModel> _mockExams = [
+    ExamModel(
+      id: 'exam-1',
+      batchId: 'mock-1',
+      subjectId: 'sub-1',
+      subjectName: 'Physics',
+      name: 'Electrostatics & Gauss Law Test',
+      examDate: '2026-07-14',
+      maxMarks: 50,
+      examTime: '02:00 PM - 03:30 PM',
+      isCancelled: false,
+    ),
+    ExamModel(
+      id: 'exam-2',
+      batchId: 'mock-1',
+      subjectId: 'sub-2',
+      subjectName: 'Chemistry',
+      name: 'Solid State & Solutions Quiz',
+      examDate: '2026-07-12',
+      maxMarks: 25,
+      examTime: '02:00 PM - 03:30 PM',
+      isCancelled: false,
     ),
   ];
 
@@ -821,5 +937,26 @@ class MockBatchRepository implements BatchRepository {
         {'name': 'Pranav Desai', 'score': '48%'}
       ],
     };
+  }
+
+  @override
+  Future<List<ExamModel>> fetchExams(String batchId) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    return _mockExams.where((e) => e.batchId == batchId).toList();
+  }
+
+  @override
+  Future<void> addExam(ExamModel exam) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    _mockExams.add(exam.copyWith(id: 'exam-${_mockExams.length + 1}'));
+  }
+
+  @override
+  Future<void> updateExam(ExamModel exam) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+    final index = _mockExams.indexWhere((e) => e.id == exam.id);
+    if (index != -1) {
+      _mockExams[index] = exam;
+    }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/utils/toast_utils.dart';
 import '../controllers/auth_controller.dart';
 
 class ChangePasswordScreen extends ConsumerStatefulWidget {
@@ -54,13 +55,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   void _onSubmit() {
     if (_formKey.currentState!.validate()) {
       if (!_isPasswordStrong()) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Password does not meet strength requirements.'),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        ToastUtils.showError(context, 'Password does not meet strength requirements.');
         return;
       }
 
@@ -72,26 +67,14 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             onSuccess: () {
               if (mounted) {
                 setState(() => _isLoading = false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Password updated successfully! Welcome to your Portal.'),
-                    backgroundColor: AppColors.success,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                ToastUtils.showSuccess(context, 'Password updated successfully! Welcome to your Portal.');
                 context.goNamed('student-dashboard');
               }
             },
             onError: (error) {
               if (mounted) {
                 setState(() => _isLoading = false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(error),
-                    backgroundColor: AppColors.error,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                ToastUtils.showError(context, error);
               }
             },
           );

@@ -127,6 +127,7 @@ class DppGeneratorController extends StateNotifier<DppGeneratorState> {
     required List<String> questionTypes,
     required String aiOption,
     String? additionalInstructions,
+    bool forceRefresh = false,
   }) async {
     state = state.copyWith(isGenerating: true, error: null, generatedDpp: null);
 
@@ -148,7 +149,8 @@ class DppGeneratorController extends StateNotifier<DppGeneratorState> {
             'questionCount': questionCount,
             'duration': timeMinutes,
             'marks': questionCount * marksPerQuestion,
-            'language': 'English'
+            'language': 'English',
+            'forceRefresh': forceRefresh,
           },
         );
 
@@ -246,6 +248,30 @@ class DppGeneratorController extends StateNotifier<DppGeneratorState> {
         error: 'Failed to generate DPP: $e',
       );
     }
+  }
+
+  Future<void> regenerateDpp() async {
+    final dpp = state.generatedDpp;
+    if (dpp == null) return;
+
+    await generateDpp(
+      title: dpp.title,
+      examType: dpp.examType,
+      classLevel: dpp.classLevel,
+      subjectId: dpp.subjectId,
+      subjectName: dpp.subjectName ?? dpp.subjectId,
+      chapterName: dpp.chapterName ?? '',
+      topics: dpp.topics,
+      difficulty: dpp.difficulty,
+      questionCount: dpp.configQuestions,
+      timeMinutes: dpp.configTimeMinutes,
+      marksPerQuestion: dpp.configMarksPerQuestion,
+      negativeMarking: dpp.configNegativeMarking,
+      questionTypes: dpp.configQuestionTypes.isEmpty ? const ['Single Correct'] : dpp.configQuestionTypes,
+      aiOption: dpp.aiGenerationOption,
+      additionalInstructions: dpp.additionalInstructions,
+      forceRefresh: true,
+    );
   }
 
   /// Returns true if the DPP ID is a local mock (not yet persisted to DB).

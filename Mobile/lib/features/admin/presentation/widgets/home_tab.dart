@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/widgets/tactile_button.dart';
 import '../../../../core/widgets/app_dropdown.dart';
+import '../../../../core/utils/toast_utils.dart';
 import '../../../batches/presentation/controllers/batch_controller.dart';
 import '../../../batches/presentation/controllers/batch_detail_controller.dart';
 import '../../../batches/data/models/batch_model.dart';
 import '../../../batches/data/models/timetable_lecture_model.dart';
+import '../../../batches/data/models/exam_model.dart';
 
 class HomeTab extends ConsumerStatefulWidget {
   const HomeTab({super.key});
@@ -19,7 +22,6 @@ class HomeTab extends ConsumerStatefulWidget {
 
 class _HomeTabState extends ConsumerState<HomeTab> {
   String? _selectedBatchId;
-  Map<String, String>? _mockScheduledTest;
 
   // Overrideable lecture data (editable by admin)
   String _lectureSubject = 'Physics — Chapter 12';
@@ -29,6 +31,85 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   final String _lectureDayOfWeek = 'Monday';
   String _lectureRoom = 'Room 101';
   String? _lectureDate = '2026-07-16';
+
+  String _getTodayFormatted() {
+    final now = DateTime.now();
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return "${now.day} ${months[now.month - 1]} ${now.year}";
+  }
+
+  String _formatDbDateToDisplay(String dateStr) {
+    try {
+      final parsed = DateTime.parse(dateStr);
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return "${parsed.day} ${months[parsed.month - 1]} ${parsed.year}";
+    } catch (_) {
+      return dateStr;
+    }
+  }
+
+  String _getStartTimeOnly(String timeStr) {
+    if (timeStr.isEmpty) return timeStr;
+    final splitters = [' - ', ' – ', '-'];
+    for (final splitter in splitters) {
+      if (timeStr.contains(splitter)) {
+        return timeStr.split(splitter).first.trim();
+      }
+    }
+    return timeStr;
+  }
+
+  String _formatDisplayDateToDb(String displayDate) {
+    try {
+      final parts = displayDate.split(' ');
+      if (parts.length >= 3) {
+        final day = int.parse(parts[0]);
+        final monthStr = parts[1];
+        final year = int.parse(parts[2]);
+        final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        final month = months.indexOf(monthStr) + 1;
+        if (month > 0) {
+          return "$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}";
+        }
+      }
+    } catch (_) {}
+    return displayDate;
+  }
+
+  DateTime? _parseDisplayDate(String displayDate) {
+    try {
+      final dbStr = _formatDisplayDateToDb(displayDate);
+      return DateTime.parse(dbStr);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<String> _getSubjectId(String name) async {
+    try {
+      final client = Supabase.instance.client;
+      final res = await client.from('subjects').select('id, name');
+      for (final row in res as List) {
+        final sName = row['name'] as String;
+        if (sName.toLowerCase().contains(name.toLowerCase())) {
+          return row['id'] as String;
+        }
+      }
+    } catch (_) {}
+    switch (name.toLowerCase()) {
+      case 'physics':
+        return 'deadaaa2-158c-4741-bb3a-99551f555a44';
+      case 'chemistry':
+        return '0039f38c-67e5-48d6-8e00-37975b1721d5';
+      case 'mathematics':
+      case 'maths':
+        return '01cac33b-9478-49a0-aaa1-341face0da54';
+      case 'biology':
+        return '000e59e1-8115-4584-b89e-977b63dd4878';
+      default:
+        return 'deadaaa2-158c-4741-bb3a-99551f555a44';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,7 +154,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 20),
-                _GreetingSection(isDark: isDark),
+                _GreetingSection(isDark: isDark, activeBatchName: activeBatch.name),
                 const SizedBox(height: 20),
                 _BatchSelectorCard(
                   activeBatch: activeBatch,
@@ -113,7 +194,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                 const SizedBox(height: 20),
                 _buildUpcomingLectureCard(context, batchDetails, isDark),
                 const SizedBox(height: 20),
-                _buildUpcomingTestCard(context, isDark),
+                _buildUpcomingTestCard(context, batchDetails, isDark, activeBatch.id),
                 const SizedBox(height: 120),
               ],
             ),
@@ -138,101 +219,307 @@ class _HomeTabState extends ConsumerState<HomeTab> {
       );
     }
 
-    if (details.lectures.isNotEmpty) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: details.lectures.map((lecture) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12.0),
-            child: _UpcomingLectureCard(
-              isDark: isDark,
-              isLoading: false,
-              subject: lecture.subjectName,
-              teacher: lecture.teacherName,
-              startTime: lecture.startTime,
-              endTime: lecture.endTime,
-              dayOfWeek: lecture.dayOfWeek,
-              room: lecture.room,
-              lectureDate: lecture.lectureDate,
-              onEdit: () => _showEditLectureDialog(
-                context,
-                batchId: _selectedBatchId,
-                lectureId: lecture.id,
-                subject: lecture.subjectName,
-                teacher: lecture.teacherName,
-                startTime: lecture.startTime,
-                endTime: lecture.endTime,
-                lectureDate: lecture.lectureDate,
-                room: lecture.room,
+    final activeLectures = details.lectures.where((l) => !l.isCancelled).toList();
+    final cardWidth = (MediaQuery.of(context).size.width - 42) / 2;
+
+    if (activeLectures.isNotEmpty) {
+      final lectureContent = activeLectures.length == 1
+          ? SizedBox(
+              width: cardWidth,
+              child: _UpcomingLectureCard(
+                isDark: isDark,
+                isLoading: false,
+                subject: activeLectures.first.subjectName,
+                teacher: activeLectures.first.teacherName,
+                startTime: activeLectures.first.startTime,
+                endTime: activeLectures.first.endTime,
+                dayOfWeek: activeLectures.first.dayOfWeek,
+                room: activeLectures.first.room,
+                lectureDate: activeLectures.first.lectureDate,
+                onEdit: () => _showEditLectureDialog(
+                  context,
+                  batchId: _selectedBatchId,
+                  lectureId: activeLectures.first.id,
+                  subject: activeLectures.first.subjectName,
+                  teacher: activeLectures.first.teacherName,
+                  startTime: activeLectures.first.startTime,
+                  endTime: activeLectures.first.endTime,
+                  lectureDate: activeLectures.first.lectureDate,
+                  room: activeLectures.first.room,
+                ),
               ),
+            )
+          : SizedBox(
+              height: 228,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                clipBehavior: Clip.none,
+                itemCount: activeLectures.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final lecture = activeLectures[index];
+                  return SizedBox(
+                    width: cardWidth,
+                    child: _UpcomingLectureCard(
+                      isDark: isDark,
+                      isLoading: false,
+                      subject: lecture.subjectName,
+                      teacher: lecture.teacherName,
+                      startTime: lecture.startTime,
+                      endTime: lecture.endTime,
+                      dayOfWeek: lecture.dayOfWeek,
+                      room: lecture.room,
+                      lectureDate: lecture.lectureDate,
+                      onEdit: () => _showEditLectureDialog(
+                        context,
+                        batchId: _selectedBatchId,
+                        lectureId: lecture.id,
+                        subject: lecture.subjectName,
+                        teacher: lecture.teacherName,
+                        startTime: lecture.startTime,
+                        endTime: lecture.endTime,
+                        lectureDate: lecture.lectureDate,
+                        room: lecture.room,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            );
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Upcoming Lectures (${activeLectures.length})',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : AppColors.textSecondary,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    if (_selectedBatchId != null && _selectedBatchId!.isNotEmpty) {
+                      context.push('/admin/batch/$_selectedBatchId');
+                    }
+                  },
+                  child: const Row(
+                    children: [
+                      Text(
+                        'All Lectures',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          );
-        }).toList(),
+          ),
+          lectureContent,
+        ],
       );
     }
 
-    return _UpcomingLectureCard(
-      isDark: isDark,
-      isLoading: false,
-      subject: _lectureSubject,
-      teacher: _lectureTeacher,
-      startTime: _lectureStartTime,
-      endTime: _lectureEndTime,
-      dayOfWeek: _lectureDayOfWeek,
-      room: _lectureRoom,
-      lectureDate: _lectureDate,
-      isPlaceholder: true,
-      onEdit: () => _showEditLectureDialog(
-        context,
-        batchId: _selectedBatchId,
-        lectureId: null,
-        subject: _lectureSubject,
-        teacher: _lectureTeacher,
-        startTime: _lectureStartTime,
-        endTime: _lectureEndTime,
-        lectureDate: _lectureDate,
-        room: _lectureRoom,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFE5E5EA),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.calendar_today_rounded,
+            size: 40,
+            color: Colors.grey.withOpacity(0.5),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No upcoming lecture',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white70 : Colors.grey[700],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildUpcomingTestCard(BuildContext context, bool isDark) {
-    if (_mockScheduledTest != null) {
-      return _UpcomingTestCard(
-        isDark: isDark,
-        subject: _mockScheduledTest!['subject'] ?? '',
-        topic: _mockScheduledTest!['topic'] ?? '',
-        date: _mockScheduledTest!['date'] ?? '',
-        time: _mockScheduledTest!['time'] ?? '',
-        marks: _mockScheduledTest!['marks'] ?? '',
-        isPlaceholder: false,
-        onEdit: () => _showEditTestDialog(
-          context,
-          subject: _mockScheduledTest!['subject'] ?? '',
-          topic: _mockScheduledTest!['topic'] ?? '',
-          date: _mockScheduledTest!['date'] ?? '',
-          time: _mockScheduledTest!['time'] ?? '',
-          marks: _mockScheduledTest!['marks'] ?? '',
-        ),
+  Widget _buildUpcomingTestCard(BuildContext context, BatchDetailState details, bool isDark, String batchId) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    final upcomingExams = details.exams.where((e) {
+      if (e.isCancelled) return false;
+      try {
+        final date = DateTime.parse(e.examDate);
+        final examDay = DateTime(date.year, date.month, date.day);
+        return examDay.isAfter(today) || examDay.isAtSameMomentAs(today);
+      } catch (_) {
+        return false;
+      }
+    }).toList();
+    
+    // Sort upcoming exams: closest date first
+    upcomingExams.sort((a, b) => a.examDate.compareTo(b.examDate));
+
+    final cardWidth = (MediaQuery.of(context).size.width - 42) / 2;
+
+    if (upcomingExams.isNotEmpty) {
+      if (upcomingExams.length == 1) {
+        final exam = upcomingExams.first;
+        return SizedBox(
+          width: cardWidth,
+          child: _UpcomingTestCard(
+            isDark: isDark,
+            subject: exam.subjectName,
+            topic: exam.name,
+            date: _formatDbDateToDisplay(exam.examDate),
+            time: _getStartTimeOnly(exam.examTime),
+            marks: "${exam.maxMarks} Marks",
+            isPlaceholder: false,
+            onEdit: () => _showEditTestDialog(
+              context,
+              exam: exam,
+              batchId: batchId,
+            ),
+          ),
+        );
+      }
+
+      // Horizontal sliding window displaying 2 cards side-by-side per screen view
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Upcoming Tests (${upcomingExams.length})',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : AppColors.textSecondary,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    context.push('/admin/previous-tests');
+                  },
+                  child: const Row(
+                    children: [
+                      Text(
+                        'All Tests',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      SizedBox(width: 2),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 228,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              clipBehavior: Clip.none,
+              itemCount: upcomingExams.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final exam = upcomingExams[index];
+                return SizedBox(
+                  width: cardWidth,
+                  child: _UpcomingTestCard(
+                    isDark: isDark,
+                    subject: exam.subjectName,
+                    topic: exam.name,
+                    date: _formatDbDateToDisplay(exam.examDate),
+                    time: _getStartTimeOnly(exam.examTime),
+                    marks: "${exam.maxMarks} Marks",
+                    isPlaceholder: false,
+                    onEdit: () => _showEditTestDialog(
+                      context,
+                      exam: exam,
+                      batchId: batchId,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       );
     }
 
-    return _UpcomingTestCard(
-      isDark: isDark,
-      subject: 'Chemistry',
-      topic: 'Organic Reactions & Mechanisms',
-      date: 'Tomorrow',
-      time: '02:00 PM',
-      marks: '100 Marks',
-      isPlaceholder: true,
-      onEdit: () => _showEditTestDialog(
-        context,
-        subject: 'Chemistry',
-        topic: 'Organic Reactions & Mechanisms',
-        date: 'Tomorrow',
-        time: '02:00 PM',
-        marks: '100 Marks',
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.06) : const Color(0xFFE5E5EA),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.assignment_turned_in_rounded,
+            size: 40,
+            color: Colors.grey.withOpacity(0.5),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No upcoming test',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white70 : Colors.grey[700],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -436,6 +723,22 @@ class _HomeTabState extends ConsumerState<HomeTab> {
         return Consumer(
           builder: (context, ref, child) {
             final details = ref.watch(batchDetailControllerProvider(batchId));
+            final batchesState = ref.watch(batchControllerProvider);
+            final batches = batchesState.valueOrNull ?? [];
+            final currentBatch = batches.firstWhere(
+              (b) => b.id == batchId,
+              orElse: () => BatchModel(
+                id: '',
+                courseId: '',
+                name: '',
+                capacity: 0,
+                examType: '',
+                classLevel: '',
+                medium: '',
+                lectureDays: const [],
+                status: '',
+              ),
+            );
 
             return StatefulBuilder(
               builder: (context, setState) {
@@ -443,6 +746,9 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
                 // Generate list of subject options dynamically from the teachers list
                 final subjectOptions = {'Physics', 'Chemistry', 'Mathematics', 'Biology', 'Other'};
+                if (currentBatch.name.toLowerCase() == 'veera' || currentBatch.examType.toUpperCase() == 'JEE') {
+                  subjectOptions.remove('Biology');
+                }
                  for (final t in details.teachers) {
                   final s = t['subject'] as String?;
                   if (s != null && s.isNotEmpty) {
@@ -701,22 +1007,35 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           return;
                         }
 
-                        // Check conflict with mock scheduled test
-                        if (_mockScheduledTest != null) {
-                          final testDateStr = _mockScheduledTest!['date'] ?? '';
-                          final testTimeStr = _mockScheduledTest!['time'] ?? '';
-                          final testSub = _mockScheduledTest!['subject'] ?? 'Test';
-                          
-                          if (_isSameDay(selectedDate!, testDateStr)) {
+                        // Check conflict with scheduled test in database
+                        final batchDetail = ref.read(batchDetailControllerProvider(batchId));
+                        for (final exam in batchDetail.exams) {
+                          if (exam.isCancelled) continue;
+                          final selectedDateStr = "${selectedDate!.year}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}";
+                          if (selectedDateStr == exam.examDate) {
                             final lecStart = _parseTimeToMinutes(startTimeController.text.trim());
                             final lecEnd = _parseTimeToMinutes(endTimeController.text.trim());
-                            final testStart = _parseTimeToMinutes(testTimeStr);
-                            final testEnd = testStart != null ? testStart + 90 : null; // Assume 1.5 hr duration
+                            
+                            // Parse exam time range: e.g. "02:00 PM - 03:30 PM"
+                            String examStartStr = exam.examTime;
+                            String examEndStr = '';
+                            if (exam.examTime.contains(' - ')) {
+                              final parts = exam.examTime.split(' - ');
+                              if (parts.length >= 2) {
+                                examStartStr = parts[0];
+                                examEndStr = parts[1];
+                              }
+                            }
+                            
+                            final testStart = _parseTimeToMinutes(examStartStr);
+                            final testEnd = examEndStr.isNotEmpty 
+                                ? _parseTimeToMinutes(examEndStr) 
+                                : (testStart != null ? testStart + 90 : null);
                             
                             if (lecStart != null && lecEnd != null && testStart != null && testEnd != null) {
                               if (lecStart < testEnd && lecEnd > testStart) {
                                 setState(() {
-                                  dialogError = 'Time Conflict: This slot overlaps with a scheduled mock test ($testSub: $testTimeStr).';
+                                  dialogError = 'Time Conflict: This slot overlaps with a scheduled test (${exam.subjectName}: ${exam.examTime}).';
                                 });
                                 return;
                               }
@@ -745,8 +1064,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           if (!dialogContext.mounted) return;
                           Navigator.pop(dialogContext);
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                                content: Text('Lecture scheduled successfully!')));
+                            ToastUtils.showSuccess(context, 'Lecture scheduled successfully!', aboveNavBar: true);
                           }
                         } catch (e) {
                           String displayError = e.toString();
@@ -779,112 +1097,254 @@ class _HomeTabState extends ConsumerState<HomeTab> {
   void _showScheduleTestDialog(BuildContext context, BatchModel batch) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final subjectController = TextEditingController();
+    final subjects = ['Physics', 'Chemistry', 'Maths', 'Biology'];
+    if (batch.examType.toUpperCase() == 'JEE') {
+      subjects.remove('Biology');
+    }
+    String selectedSubject = subjects.contains('Chemistry') ? 'Chemistry' : subjects.first;
     final topicController = TextEditingController();
-    final dateController = TextEditingController(text: 'July 15, 2026');
-    final timeController = TextEditingController(text: '02:00 PM');
-    final marksController = TextEditingController(text: '100 Marks');
+    final dateController = TextEditingController(text: _getTodayFormatted());
+    final startTimeController = TextEditingController(text: '02:00 PM');
+    final endTimeController = TextEditingController(text: '03:30 PM');
+    final marksController = TextEditingController(text: '100');
 
     showDialog(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18)),
-          title: Text(
-            'Schedule Test',
-            style: TextStyle(
-                color: isDark ? Colors.white : AppColors.ink,
-                fontWeight: FontWeight.bold),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: subjectController,
-                  decoration:
-                      const InputDecoration(labelText: 'Subject Name'),
-                  style: TextStyle(
-                      color: isDark ? Colors.white : AppColors.ink),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: topicController,
-                  decoration: const InputDecoration(
-                      labelText: 'Topic / Syllabus'),
-                  style: TextStyle(
-                      color: isDark ? Colors.white : AppColors.ink),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: dateController,
-                  decoration: const InputDecoration(labelText: 'Date'),
-                  style: TextStyle(
-                      color: isDark ? Colors.white : AppColors.ink),
-                ),
-                const SizedBox(height: 12),
-                Row(
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18)),
+              title: Text(
+                'Schedule Test',
+                style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.ink,
+                    fontWeight: FontWeight.bold),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: timeController,
-                        decoration:
-                            const InputDecoration(labelText: 'Time'),
-                        style: TextStyle(
-                            color: isDark ? Colors.white : AppColors.ink),
-                      ),
+                    AppDropdown<String>(
+                      value: selectedSubject,
+                      label: 'Subject Name',
+                      items: subjects
+                          .map((s) => AppDropdownItem<String>(value: s, label: s))
+                          .toList(),
+                      onChanged: (val) {
+                        setStateDialog(() {
+                          selectedSubject = val;
+                        });
+                      },
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: marksController,
-                        decoration: const InputDecoration(
-                            labelText: 'Max Marks'),
-                        style: TextStyle(
-                            color: isDark ? Colors.white : AppColors.ink),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: topicController,
+                      decoration: const InputDecoration(
+                          labelText: 'Topic / Syllabus'),
+                      style: TextStyle(
+                          color: isDark ? Colors.white : AppColors.ink),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: dateController,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Date',
+                        suffixIcon: Icon(Icons.calendar_today_rounded),
                       ),
+                      style: TextStyle(
+                          color: isDark ? Colors.white : AppColors.ink),
+                      onTap: () async {
+                        final now = DateTime.now();
+                        final today = DateTime(now.year, now.month, now.day);
+                        final pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: now,
+                          firstDate: today,
+                          lastDate: DateTime(2030),
+                        );
+                        if (pickedDate != null) {
+                          final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                          final formatted = "${pickedDate.day} ${months[pickedDate.month - 1]} ${pickedDate.year}";
+                          dateController.text = formatted;
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: startTimeController,
+                            readOnly: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Start Time',
+                              suffixIcon: Icon(Icons.access_time_rounded),
+                            ),
+                            style: TextStyle(
+                                color: isDark ? Colors.white : AppColors.ink),
+                            onTap: () async {
+                              final picked = await showTimePicker(
+                                context: context,
+                                initialTime: const TimeOfDay(hour: 14, minute: 0),
+                              );
+                              if (picked != null) {
+                                final hour = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
+                                final minute = picked.minute.toString().padLeft(2, '0');
+                                final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
+                                startTimeController.text = "${hour.toString().padLeft(2, '0')}:$minute $period";
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: endTimeController,
+                            readOnly: true,
+                            decoration: const InputDecoration(
+                              labelText: 'End Time',
+                              suffixIcon: Icon(Icons.access_time_rounded),
+                            ),
+                            style: TextStyle(
+                                color: isDark ? Colors.white : AppColors.ink),
+                            onTap: () async {
+                              final picked = await showTimePicker(
+                                context: context,
+                                initialTime: const TimeOfDay(hour: 15, minute: 30),
+                              );
+                              if (picked != null) {
+                                final hour = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
+                                final minute = picked.minute.toString().padLeft(2, '0');
+                                final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
+                                endTimeController.text = "${hour.toString().padLeft(2, '0')}:$minute $period";
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: marksController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: const InputDecoration(
+                          labelText: 'Max Marks'),
+                      style: TextStyle(
+                          color: isDark ? Colors.white : AppColors.ink),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel',
-                  style: TextStyle(color: AppColors.textSecondary)),
-            ),
-            TactileButton(
-              onTap: () {
-                if (subjectController.text.trim().isEmpty ||
-                    topicController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text(
-                          'Please fill out Subject and Topic fields')));
-                  return;
-                }
-                setState(() {
-                  _mockScheduledTest = {
-                    'subject': subjectController.text.trim(),
-                    'topic': topicController.text.trim(),
-                    'date': dateController.text.trim(),
-                    'time': timeController.text.trim(),
-                    'marks': marksController.text.trim(),
-                  };
-                });
-                Navigator.pop(dialogContext);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Test scheduled successfully!')));
-              },
-              child: ElevatedButton(
-                onPressed: () {},
-                child: const Text('Schedule'),
               ),
-            ),
-          ],
+              actions: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: () async {
+                    if (topicController.text.trim().isEmpty) {
+                      ToastUtils.showError(context, 'Please fill out Topic / Syllabus field', aboveNavBar: true);
+                      return;
+                    }
+                    if (marksController.text.trim().isEmpty) {
+                      ToastUtils.showError(context, 'Please enter Max Marks', aboveNavBar: true);
+                      return;
+                    }
+                    
+                    final lecStart = _parseTimeToMinutes(startTimeController.text.trim());
+                    final lecEnd = _parseTimeToMinutes(endTimeController.text.trim());
+                    if (lecStart != null && lecEnd != null && lecStart >= lecEnd) {
+                      ToastUtils.showError(context, 'End Time must be after Start Time', aboveNavBar: true);
+                      return;
+                    }
+
+                    // Check conflict with other scheduled tests on the same day
+                    final targetDateStr = _formatDisplayDateToDb(dateController.text.trim());
+                    final details = ref.read(batchDetailControllerProvider(batch.id));
+                    for (final exam in details.exams) {
+                      if (exam.isCancelled) continue;
+                      if (targetDateStr == exam.examDate) {
+                          String examStartStr = exam.examTime;
+                          String examEndStr = '';
+                          if (exam.examTime.contains(' - ')) {
+                            final parts = exam.examTime.split(' - ');
+                            if (parts.length >= 2) {
+                              examStartStr = parts[0];
+                              examEndStr = parts[1];
+                            }
+                          }
+                          
+                          final testStart = _parseTimeToMinutes(examStartStr);
+                          final testEnd = examEndStr.isNotEmpty 
+                              ? _parseTimeToMinutes(examEndStr) 
+                              : (testStart != null ? testStart + 90 : null);
+                          
+                          if (lecStart != null && lecEnd != null && testStart != null && testEnd != null) {
+                            if (lecStart < testEnd && lecEnd > testStart) {
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext ctx) => AlertDialog(
+                                  title: const Text('Conflict'),
+                                  content: Text('Already test schedule of ${exam.subjectName} from $examStartStr to ${examEndStr.isNotEmpty ? examEndStr : "03:30 PM"} time'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: const Text('OK'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              return;
+                            }
+                          }
+                        }
+                      }
+                    try {
+                      final subId = await _getSubjectId(selectedSubject);
+                      final newExam = ExamModel(
+                        id: '',
+                        batchId: batch.id,
+                        subjectId: subId,
+                        subjectName: selectedSubject,
+                        name: topicController.text.trim(),
+                        examDate: _formatDisplayDateToDb(dateController.text.trim()),
+                        maxMarks: int.tryParse(marksController.text.trim()) ?? 100,
+                        examTime: "${startTimeController.text.trim()} - ${endTimeController.text.trim()}",
+                        isCancelled: false,
+                      );
+                      await ref.read(batchDetailControllerProvider(batch.id).notifier).addExam(newExam);
+                      if (!dialogContext.mounted || !context.mounted) return;
+                      Navigator.pop(dialogContext);
+                      ToastUtils.showSuccess(context, 'Test scheduled successfully!', aboveNavBar: true);
+                    } catch (e) {
+                      ToastUtils.showError(context, 'Failed to schedule test: $e', aboveNavBar: true);
+                    }
+                  },
+                  child: const Text('Schedule', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          }
         );
       },
     );
@@ -954,10 +1414,13 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                   style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
                   onTap: () async {
                     final initialDate = DateTime.tryParse(dateController.text) ?? DateTime.now();
+                    final now = DateTime.now();
+                    final today = DateTime(now.year, now.month, now.day);
+                    final firstVal = initialDate.isBefore(today) ? initialDate : today;
                     final pickedDate = await showDatePicker(
                       context: context,
                       initialDate: initialDate,
-                      firstDate: DateTime(2020),
+                      firstDate: firstVal,
                       lastDate: DateTime(2030),
                     );
                     if (pickedDate != null) {
@@ -1079,12 +1542,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                           .deleteLecture(lectureId);
                       if (!dialogContext.mounted || !context.mounted) return;
                       Navigator.pop(dialogContext);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Lecture cancelled successfully!')));
+                      ToastUtils.showSuccess(context, 'Lecture cancelled successfully!', aboveNavBar: true);
                     } catch (e) {
                       if (!dialogContext.mounted || !context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Error cancelling lecture: $e')));
+                      ToastUtils.showError(context, 'Error cancelling lecture: $e', aboveNavBar: true);
                     }
                   } else {
                     if (!dialogContext.mounted || !context.mounted) return;
@@ -1097,8 +1558,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                       _lectureEndTime = '10:30 AM';
                     });
                     Navigator.pop(dialogContext);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Lecture cancelled successfully!')));
+                    ToastUtils.showSuccess(context, 'Lecture cancelled successfully!', aboveNavBar: true);
                   }
                 }
               },
@@ -1118,8 +1578,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
               onPressed: () async {
                 if (subjectController.text.trim().isEmpty ||
                     teacherController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Please fill out Subject and Teacher fields')));
+                  ToastUtils.showError(context, 'Please fill out Subject and Teacher fields', aboveNavBar: true);
                   return;
                 }
                 
@@ -1138,12 +1597,10 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     
                     if (!dialogContext.mounted || !context.mounted) return;
                     Navigator.pop(dialogContext);
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Lecture updated successfully!')));
+                    ToastUtils.showSuccess(context, 'Lecture updated successfully!', aboveNavBar: true);
                   } catch (e) {
                     if (!dialogContext.mounted || !context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error updating lecture: $e')));
+                    ToastUtils.showError(context, 'Error updating lecture: $e', aboveNavBar: true);
                   }
                 } else {
                   setState(() {
@@ -1155,8 +1612,7 @@ class _HomeTabState extends ConsumerState<HomeTab> {
                     _lectureEndTime = endTimeController.text.trim();
                   });
                   Navigator.pop(dialogContext);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Upcoming lecture updated successfully!')));
+                  ToastUtils.showSuccess(context, 'Upcoming lecture updated successfully!', aboveNavBar: true);
                 }
               },
               child: const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
@@ -1169,109 +1625,374 @@ class _HomeTabState extends ConsumerState<HomeTab> {
 
   void _showEditTestDialog(
     BuildContext context, {
-    required String subject,
-    required String topic,
-    required String date,
-    required String time,
-    required String marks,
+    required ExamModel exam,
+    required String batchId,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final subjectController = TextEditingController(text: subject);
-    final topicController = TextEditingController(text: topic);
-    final dateController = TextEditingController(text: date);
-    final timeController = TextEditingController(text: time);
-    final marksController = TextEditingController(text: marks);
+    final topicController = TextEditingController(text: exam.name);
+    final dateController = TextEditingController(text: _formatDbDateToDisplay(exam.examDate));
+    final cleanMarks = exam.maxMarks.toString();
+    final marksController = TextEditingController(text: cleanMarks);
+
+    String startTime = '02:00 PM';
+    String endTime = '03:30 PM';
+    if (exam.examTime.contains(' - ')) {
+      final parts = exam.examTime.split(' - ');
+      if (parts.length >= 2) {
+        startTime = parts[0].trim();
+        endTime = parts[1].trim();
+      }
+    } else if (exam.examTime.isNotEmpty) {
+      startTime = exam.examTime.trim();
+    }
+
+    final startTimeController = TextEditingController(text: startTime);
+    final endTimeController = TextEditingController(text: endTime);
 
     showDialog(
       context: context,
       builder: (dialogContext) {
-        return AlertDialog(
-          backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          title: Text(
-            'Edit Test Details',
-            style: TextStyle(
-                color: isDark ? Colors.white : AppColors.ink,
-                fontWeight: FontWeight.bold),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: subjectController,
-                  decoration: const InputDecoration(labelText: 'Subject Name'),
-                  style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: topicController,
-                  decoration: const InputDecoration(labelText: 'Topic / Syllabus'),
-                  style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: dateController,
-                  decoration: const InputDecoration(labelText: 'Date'),
-                  style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
-                ),
-                const SizedBox(height: 12),
-                Row(
+        return Consumer(
+          builder: (context, ref, child) {
+            final batchesState = ref.watch(batchControllerProvider);
+            final batches = batchesState.valueOrNull ?? [];
+            final currentBatch = batches.firstWhere(
+              (b) => b.id == batchId,
+              orElse: () => BatchModel(
+                id: '',
+                courseId: '',
+                name: '',
+                capacity: 0,
+                examType: '',
+                classLevel: '',
+                medium: '',
+                lectureDays: const [],
+                status: '',
+              ),
+            );
+            
+            final validSubjects = ['Physics', 'Chemistry', 'Maths', 'Biology'];
+            if (currentBatch.examType.toUpperCase() == 'JEE') {
+              validSubjects.remove('Biology');
+            }
+            String selectedSubject = validSubjects.contains(exam.subjectName) ? exam.subjectName : (validSubjects.contains('Chemistry') ? 'Chemistry' : validSubjects.first);
+
+            return StatefulBuilder(
+              builder: (context, setStateDialog) {
+            return AlertDialog(
+              backgroundColor: isDark ? AppColors.surfaceTile1 : Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              title: Text(
+                'Edit Test Details',
+                style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.ink,
+                    fontWeight: FontWeight.bold),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: timeController,
-                        decoration: const InputDecoration(labelText: 'Time'),
-                        style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
-                      ),
+                    AppDropdown<String>(
+                      value: selectedSubject,
+                      label: 'Subject Name',
+                      items: validSubjects
+                          .map((s) => AppDropdownItem<String>(value: s, label: s))
+                          .toList(),
+                      onChanged: (val) {
+                        setStateDialog(() {
+                          selectedSubject = val;
+                        });
+                      },
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: marksController,
-                        decoration: const InputDecoration(labelText: 'Max Marks'),
-                        style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: topicController,
+                      decoration: const InputDecoration(labelText: 'Topic / Syllabus'),
+                      style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: dateController,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Date',
+                        suffixIcon: Icon(Icons.calendar_today_rounded),
                       ),
+                      style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                      onTap: () async {
+                        DateTime initialDate = DateTime.now();
+                        try {
+                          final parts = dateController.text.split(' ');
+                          if (parts.length >= 3) {
+                            final day = int.tryParse(parts[0]) ?? 1;
+                            final monthStr = parts[1];
+                            final year = int.tryParse(parts[2]) ?? DateTime.now().year;
+                            final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                            final month = months.indexOf(monthStr) + 1;
+                            if (month > 0) {
+                              initialDate = DateTime(year, month, day);
+                            }
+                          }
+                        } catch (_) {}
+
+                        final now = DateTime.now();
+                        final today = DateTime(now.year, now.month, now.day);
+                        final firstVal = initialDate.isBefore(today) ? initialDate : today;
+                        final pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: initialDate,
+                          firstDate: firstVal,
+                          lastDate: DateTime(2030),
+                        );
+                        if (pickedDate != null) {
+                          final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                          final formatted = "${pickedDate.day} ${months[pickedDate.month - 1]} ${pickedDate.year}";
+                          dateController.text = formatted;
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: startTimeController,
+                            readOnly: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Start Time',
+                              suffixIcon: Icon(Icons.access_time_rounded),
+                            ),
+                            style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                            onTap: () async {
+                              TimeOfDay initial = const TimeOfDay(hour: 14, minute: 0);
+                              try {
+                                final cleaned = startTimeController.text.replaceFirst(' AM', '').replaceFirst(' PM', '').trim();
+                                final parts = cleaned.split(':');
+                                if (parts.length >= 2) {
+                                  int hr = int.parse(parts[0]);
+                                  final min = int.parse(parts[1]);
+                                  final isPm = startTimeController.text.contains('PM');
+                                  if (isPm && hr != 12) hr += 12;
+                                  if (!isPm && hr == 12) hr = 0;
+                                  initial = TimeOfDay(hour: hr, minute: min);
+                                }
+                              } catch (_) {}
+
+                              final picked = await showTimePicker(
+                                context: context,
+                                initialTime: initial,
+                              );
+                              if (picked != null) {
+                                final hour = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
+                                final minute = picked.minute.toString().padLeft(2, '0');
+                                final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
+                                startTimeController.text = "${hour.toString().padLeft(2, '0')}:$minute $period";
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: endTimeController,
+                            readOnly: true,
+                            decoration: const InputDecoration(
+                              labelText: 'End Time',
+                              suffixIcon: Icon(Icons.access_time_rounded),
+                            ),
+                            style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
+                            onTap: () async {
+                              TimeOfDay initial = const TimeOfDay(hour: 15, minute: 30);
+                              try {
+                                final cleaned = endTimeController.text.replaceFirst(' AM', '').replaceFirst(' PM', '').trim();
+                                final parts = cleaned.split(':');
+                                if (parts.length >= 2) {
+                                  int hr = int.parse(parts[0]);
+                                  final min = int.parse(parts[1]);
+                                  final isPm = endTimeController.text.contains('PM');
+                                  if (isPm && hr != 12) hr += 12;
+                                  if (!isPm && hr == 12) hr = 0;
+                                  initial = TimeOfDay(hour: hr, minute: min);
+                                }
+                              } catch (_) {}
+
+                              final picked = await showTimePicker(
+                                context: context,
+                                initialTime: initial,
+                              );
+                              if (picked != null) {
+                                final hour = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
+                                final minute = picked.minute.toString().padLeft(2, '0');
+                                final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
+                                endTimeController.text = "${hour.toString().padLeft(2, '0')}:$minute $period";
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: marksController,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      decoration: const InputDecoration(labelText: 'Max Marks'),
+                      style: TextStyle(color: isDark ? Colors.white : AppColors.ink),
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
-            ),
-            TactileButton(
-              onTap: () {
-                if (subjectController.text.trim().isEmpty ||
-                    topicController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Please fill out Subject and Topic fields')));
-                  return;
-                }
-                setState(() {
-                  _mockScheduledTest = {
-                    'subject': subjectController.text.trim(),
-                    'topic': topicController.text.trim(),
-                    'date': dateController.text.trim(),
-                    'time': timeController.text.trim(),
-                    'marks': marksController.text.trim(),
-                  };
-                });
-                Navigator.pop(dialogContext);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Upcoming test updated successfully!')));
-              },
-              child: ElevatedButton(
-                onPressed: () {},
-                child: const Text('Save'),
               ),
-            ),
-          ],
+              actions: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Cancel Test'),
+                        content: const Text('Are you sure you want to cancel this scheduled test?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('No'),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Yes, Cancel It', style: TextStyle(color: Colors.red)),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      try {
+                        final updated = exam.copyWith(isCancelled: true);
+                        await ref.read(batchDetailControllerProvider(batchId).notifier).updateExam(updated);
+                        if (!dialogContext.mounted || !context.mounted) return;
+                        Navigator.pop(dialogContext);
+                        ToastUtils.showSuccess(context, 'Test cancelled successfully!', aboveNavBar: true);
+                      } catch (e) {
+                        ToastUtils.showError(context, 'Failed to cancel test: $e', aboveNavBar: true);
+                      }
+                    }
+                  },
+                  child: const Text('Cancel Test', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: () async {
+                    if (topicController.text.trim().isEmpty) {
+                      ToastUtils.showError(context, 'Please fill out Topic / Syllabus field', aboveNavBar: true);
+                      return;
+                    }
+                    if (marksController.text.trim().isEmpty) {
+                      ToastUtils.showError(context, 'Please enter Max Marks', aboveNavBar: true);
+                      return;
+                    }
+                    
+                    final lecStart = _parseTimeToMinutes(startTimeController.text.trim());
+                    final lecEnd = _parseTimeToMinutes(endTimeController.text.trim());
+                    if (lecStart != null && lecEnd != null && lecStart >= lecEnd) {
+                      ToastUtils.showError(context, 'End Time must be after Start Time', aboveNavBar: true);
+                      return;
+                    }
+
+                    // Check conflict with other scheduled tests on the same day (excluding this exam)
+                    final targetDateStr = _formatDisplayDateToDb(dateController.text.trim());
+                    final details = ref.read(batchDetailControllerProvider(batchId));
+                    for (final otherExam in details.exams) {
+                      if (otherExam.isCancelled) continue;
+                      if (otherExam.id == exam.id) continue; // Exclude current exam itself
+                      if (targetDateStr == otherExam.examDate) {
+                          String examStartStr = otherExam.examTime;
+                          String examEndStr = '';
+                          if (otherExam.examTime.contains(' - ')) {
+                            final parts = otherExam.examTime.split(' - ');
+                            if (parts.length >= 2) {
+                              examStartStr = parts[0];
+                              examEndStr = parts[1];
+                            }
+                          }
+                          
+                          final testStart = _parseTimeToMinutes(examStartStr);
+                          final testEnd = examEndStr.isNotEmpty 
+                              ? _parseTimeToMinutes(examEndStr) 
+                              : (testStart != null ? testStart + 90 : null);
+                          
+                          if (lecStart != null && lecEnd != null && testStart != null && testEnd != null) {
+                            if (lecStart < testEnd && lecEnd > testStart) {
+                              showDialog(
+                                context: context,
+                                builder: (BuildContext ctx) => AlertDialog(
+                                  title: const Text('Conflict'),
+                                  content: Text('Already test schedule of ${otherExam.subjectName} from $examStartStr to ${examEndStr.isNotEmpty ? examEndStr : "03:30 PM"} time'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      child: const Text('OK'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              return;
+                            }
+                          }
+                        }
+                      }
+                    try {
+                      final subId = await _getSubjectId(selectedSubject);
+                      final updated = exam.copyWith(
+                        subjectId: subId,
+                        subjectName: selectedSubject,
+                        name: topicController.text.trim(),
+                        examDate: _formatDisplayDateToDb(dateController.text.trim()),
+                        maxMarks: int.tryParse(marksController.text.trim()) ?? 100,
+                        examTime: "${startTimeController.text.trim()} - ${endTimeController.text.trim()}",
+                      );
+                      await ref.read(batchDetailControllerProvider(batchId).notifier).updateExam(updated);
+                      if (!dialogContext.mounted || !context.mounted) return;
+                      Navigator.pop(dialogContext);
+                      ToastUtils.showSuccess(context, 'Upcoming test updated successfully!', aboveNavBar: true);
+                    } catch (e) {
+                      ToastUtils.showError(context, 'Failed to update test: $e', aboveNavBar: true);
+                    }
+                  },
+                  child: const Text('Save', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          }
         );
+      }
+    );
       },
     );
   }
@@ -1350,8 +2071,9 @@ class _EmptyBatchesView extends StatelessWidget {
 }
 
 class _GreetingSection extends StatelessWidget {
-  const _GreetingSection({required this.isDark});
+  const _GreetingSection({required this.isDark, required this.activeBatchName});
   final bool isDark;
+  final String activeBatchName;
 
   String _greeting() {
     final h = DateTime.now().hour;
@@ -1396,15 +2118,85 @@ class _GreetingSection extends StatelessWidget {
             ],
           ),
         ),
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(12),
+        PopupMenuButton<String>(
+          icon: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.menu_rounded,
+              color: AppColors.primary,
+              size: 22,
+            ),
           ),
-          child: const Icon(Icons.notifications_none_rounded,
-              color: AppColors.primary, size: 22),
+          iconSize: 44,
+          padding: EdgeInsets.zero,
+          tooltip: 'Menu Options',
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          onSelected: (value) {
+            if (value == 'Previous Lecture') {
+              context.push('/admin/previous-lectures?batch=$activeBatchName');
+            } else if (value == 'Previous Test') {
+              context.push('/admin/previous-tests?batch=$activeBatchName');
+            } else if (value == 'Attendance') {
+              context.push('/admin/attendance-record?batch=$activeBatchName');
+            }
+          },
+          itemBuilder: (BuildContext context) => [
+            const PopupMenuItem<String>(
+              value: 'Previous Lecture',
+              child: Row(
+                children: [
+                  Icon(Icons.history_rounded, size: 20, color: AppColors.primary),
+                  SizedBox(width: 10),
+                  Text(
+                    'Previous Lecture',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuItem<String>(
+              value: 'Previous Test',
+              child: Row(
+                children: [
+                  Icon(Icons.assignment_turned_in_outlined, size: 20, color: AppColors.primary),
+                  SizedBox(width: 10),
+                  Text(
+                    'Previous Test',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuItem<String>(
+              value: 'Attendance',
+              child: Row(
+                children: [
+                  Icon(Icons.calendar_month_outlined, size: 20, color: AppColors.primary),
+                  SizedBox(width: 10),
+                  Text(
+                    'Attendance Record',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -1715,22 +2507,42 @@ class _UpcomingLectureCard extends StatelessWidget {
     return dayOfWeek;
   }
 
+  String _getStartTimeOnly(String timeStr) {
+    if (timeStr.isEmpty) return timeStr;
+    final splitters = [' - ', ' – ', '-'];
+    for (final splitter in splitters) {
+      if (timeStr.contains(splitter)) {
+        return timeStr.split(splitter).first.trim();
+      }
+    }
+    return timeStr;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = _SubjectTheme.forSubject(subject);
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceTile1 : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? Colors.white10 : const Color(0xFFE0E0E0),
-          width: 1,
-        ),
+        gradient: theme.gradient,
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
+          // Ambient light diffuse shadow
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.35)
+                : Colors.black.withValues(alpha: 0.10),
+            blurRadius: 18,
+            spreadRadius: 1,
+            offset: Offset.zero,
+          ),
+          // Key directional light colored shadow
+          BoxShadow(
+            color: theme.accent.withValues(alpha: 0.38),
             blurRadius: 12,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 6),
+            spreadRadius: -1,
           ),
         ],
       ),
@@ -1740,49 +2552,46 @@ class _UpcomingLectureCard extends StatelessWidget {
               child: Center(
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(AppColors.primary),
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                 ),
               ),
             )
           : Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: 32,
+                      height: 32,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(10),
+                        color: Colors.white.withValues(alpha: 0.20),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.calendar_today_rounded,
-                          color: AppColors.primary, size: 18),
+                      child: Icon(theme.icon, color: Colors.white, size: 15),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'Upcoming Lecture',
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: 10,
                               fontWeight: FontWeight.w500,
-                              color: isDark
-                                  ? Colors.white38
-                                  : AppColors.textSecondary,
+                              color: Colors.white70,
                               letterSpacing: 0.3,
                             ),
                           ),
                           const SizedBox(height: 1),
                           Text(
                             subject,
-                            style: TextStyle(
-                              fontSize: 17,
+                            style: const TextStyle(
+                              fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? Colors.white : AppColors.ink,
+                              color: Colors.white,
                               letterSpacing: -0.374,
                             ),
                             maxLines: 1,
@@ -1794,77 +2603,61 @@ class _UpcomingLectureCard extends StatelessWidget {
                     if (isPlaceholder)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEFF6FF),
+                          color: Colors.white.withValues(alpha: 0.20),
                           borderRadius: BorderRadius.circular(9999),
-                          border: Border.all(
-                              color: AppColors.primary
-                                  .withValues(alpha: 0.3)),
                         ),
                         child: const Text(
                           'Upcoming',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.primary,
+                            color: Colors.white,
                           ),
                         ),
                       ),
                     if (onEdit != null) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 6),
                       IconButton(
-                        icon: const Icon(Icons.edit_outlined, size: 18),
-                        color: isDark ? Colors.white54 : AppColors.textSecondary,
+                        icon: const Icon(Icons.edit_outlined, size: 15),
+                        color: Colors.white70,
                         visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(),
+                        padding: const EdgeInsets.all(4),
                         onPressed: onEdit,
                       ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 16),
-                Divider(
-                    color: isDark ? Colors.white10 : const Color(0xFFF0F0F0),
-                    height: 1),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _InfoChip(
-                          icon: Icons.person_outline_rounded,
-                          label: 'Teacher',
-                          value: teacher,
-                          isDark: isDark),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _InfoChip(
-                          icon: Icons.meeting_room_outlined,
-                          label: 'Room',
-                          value: room,
-                          isDark: isDark),
-                    ),
-                  ],
+                const SizedBox(height: 6),
+                const Divider(color: Colors.white24, height: 1),
+                const SizedBox(height: 6),
+                _InfoChip(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Teacher',
+                  value: teacher,
+                  isDark: isDark,
+                  compact: true,
+                  onGradient: true,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _InfoChip(
-                          icon: Icons.access_time_rounded,
-                          label: 'Time',
-                          value: '$startTime – $endTime',
-                          isDark: isDark),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _InfoChip(
-                          icon: Icons.calendar_today_rounded,
-                          label: 'Date',
-                          value: displayDateOrDay,
-                          isDark: isDark),
-                    ),
-                  ],
+                const SizedBox(height: 5),
+                _InfoChip(
+                  icon: Icons.access_time_rounded,
+                  label: 'Time & Room',
+                  value: '${_getStartTimeOnly(startTime)} • $room',
+                  isDark: isDark,
+                  compact: true,
+                  onGradient: true,
+                ),
+                const SizedBox(height: 5),
+                _InfoChip(
+                  icon: Icons.today_rounded,
+                  label: 'Date',
+                  value: displayDateOrDay,
+                  isDark: isDark,
+                  compact: true,
+                  onGradient: true,
                 ),
               ],
             ),
@@ -1893,63 +2686,70 @@ class _UpcomingTestCard extends StatelessWidget {
   final bool isPlaceholder;
   final VoidCallback? onEdit;
 
-  static const Color _accent = Color(0xFF10B981);
-
   @override
   Widget build(BuildContext context) {
+    final theme = _SubjectTheme.forSubject(subject);
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.surfaceTile1 : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark ? Colors.white10 : const Color(0xFFE0E0E0),
-          width: 1,
-        ),
+        gradient: theme.gradient,
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
+          // Ambient light diffuse shadow
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
+            color: isDark
+                ? Colors.black.withValues(alpha: 0.35)
+                : Colors.black.withValues(alpha: 0.10),
+            blurRadius: 18,
+            spreadRadius: 1,
+            offset: Offset.zero,
+          ),
+          // Key directional light colored shadow
+          BoxShadow(
+            color: theme.accent.withValues(alpha: 0.38),
             blurRadius: 12,
-            offset: const Offset(0, 2),
+            offset: const Offset(0, 6),
+            spreadRadius: -1,
           ),
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
-                  color: _accent.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.white.withValues(alpha: 0.20),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.assignment_rounded,
-                    color: _accent, size: 18),
+                child: Icon(theme.icon, color: Colors.white, size: 15),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Upcoming Test',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 10,
                         fontWeight: FontWeight.w500,
-                        color: isDark ? Colors.white38 : AppColors.textSecondary,
+                        color: Colors.white70,
                         letterSpacing: 0.3,
                       ),
                     ),
                     const SizedBox(height: 1),
                     Text(
                       subject,
-                      style: TextStyle(
-                        fontSize: 17,
+                      style: const TextStyle(
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : AppColors.ink,
+                        color: Colors.white,
                         letterSpacing: -0.374,
                       ),
                       maxLines: 1,
@@ -1961,52 +2761,52 @@ class _UpcomingTestCard extends StatelessWidget {
               if (isPlaceholder)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
+                      horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: _accent.withValues(alpha: 0.10),
+                    color: Colors.white.withValues(alpha: 0.20),
                     borderRadius: BorderRadius.circular(9999),
                   ),
                   child: const Text(
                     'Scheduled',
                     style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w500,
-                        color: _accent),
+                        color: Colors.white),
                   ),
                 ),
               if (onEdit != null) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 18),
-                  color: isDark ? Colors.white54 : AppColors.textSecondary,
+                  icon: const Icon(Icons.edit_outlined, size: 15),
+                  color: Colors.white70,
                   visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
                   onPressed: onEdit,
                 ),
               ],
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.04)
-                  : const Color(0xFFF5F5F7),
-              borderRadius: BorderRadius.circular(10),
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               children: [
-                Icon(Icons.menu_book_rounded,
-                    size: 14,
-                    color: isDark ? Colors.white38 : AppColors.textSecondary),
-                const SizedBox(width: 8),
+                const Icon(Icons.menu_book_rounded,
+                    size: 12,
+                    color: Colors.white70),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     topic,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: isDark ? Colors.white70 : AppColors.ink,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.white,
                       fontWeight: FontWeight.w500,
                     ),
                     maxLines: 1,
@@ -2016,50 +2816,26 @@ class _UpcomingTestCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 12),
-          Divider(
-              color: isDark ? Colors.white10 : const Color(0xFFF0F0F0),
+          const SizedBox(height: 6),
+          const Divider(
+              color: Colors.white24,
               height: 1),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _InfoChip(
-                    icon: Icons.today_rounded,
-                    label: 'Date',
-                    value: date,
-                    isDark: isDark),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _InfoChip(
-                    icon: Icons.access_time_rounded,
-                    label: 'Time',
-                    value: time,
-                    isDark: isDark),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _InfoChip(
-                    icon: Icons.emoji_events_outlined,
-                    label: 'Marks',
-                    value: marks,
-                    isDark: isDark),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _InfoChip(
-                    icon: Icons.bar_chart_rounded,
-                    label: 'Difficulty',
-                    value: 'Medium',
-                    isDark: isDark),
-              ),
-            ],
-          ),
+          const SizedBox(height: 6),
+          _InfoChip(
+              icon: Icons.today_rounded,
+              label: 'Date & Time',
+              value: '$date • $time',
+              isDark: isDark,
+              compact: true,
+              onGradient: true),
+          const SizedBox(height: 6),
+          _InfoChip(
+              icon: Icons.emoji_events_outlined,
+              label: 'Marks',
+              value: marks,
+              isDark: isDark,
+              compact: true,
+              onGradient: true),
         ],
       ),
     );
@@ -2072,29 +2848,49 @@ class _InfoChip extends StatelessWidget {
     required this.label,
     required this.value,
     required this.isDark,
+    this.compact = false,
+    this.onGradient = false,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final bool isDark;
+  final bool compact;
+  final bool onGradient;
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = onGradient
+        ? Colors.white.withValues(alpha: 0.15)
+        : (isDark ? Colors.white.withValues(alpha: 0.04) : const Color(0xFFF5F5F7));
+    final iconColor = onGradient
+        ? Colors.white70
+        : (isDark ? Colors.white38 : AppColors.textSecondary);
+    final labelColor = onGradient
+        ? Colors.white70
+        : (isDark ? Colors.white38 : AppColors.textSecondary);
+    final valueColor = onGradient
+        ? Colors.white
+        : (isDark ? Colors.white : AppColors.ink);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 6 : 10,
+        vertical: compact ? 6 : 8,
+      ),
       decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.04)
-            : const Color(0xFFF5F5F7),
-        borderRadius: BorderRadius.circular(10),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(compact ? 8 : 10),
       ),
       child: Row(
         children: [
-          Icon(icon,
-              size: 14,
-              color: isDark ? Colors.white38 : AppColors.textSecondary),
-          const SizedBox(width: 6),
+          Icon(
+            icon,
+            size: compact ? 12 : 14,
+            color: iconColor,
+          ),
+          SizedBox(width: compact ? 4 : 6),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2102,8 +2898,8 @@ class _InfoChip extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 10,
-                    color: isDark ? Colors.white38 : AppColors.textSecondary,
+                    fontSize: compact ? 9 : 10,
+                    color: labelColor,
                     letterSpacing: 0.2,
                   ),
                 ),
@@ -2111,9 +2907,9 @@ class _InfoChip extends StatelessWidget {
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: compact ? 10.5 : 12,
                     fontWeight: FontWeight.w600,
-                    color: isDark ? Colors.white : AppColors.ink,
+                    color: valueColor,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -2123,6 +2919,73 @@ class _InfoChip extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SubjectTheme {
+  final Color accent;
+  final Gradient gradient;
+  final IconData icon;
+
+  const _SubjectTheme({
+    required this.accent,
+    required this.gradient,
+    required this.icon,
+  });
+
+  factory _SubjectTheme.forSubject(String subject) {
+    final lower = subject.toLowerCase();
+    if (lower.contains('physic')) {
+      return const _SubjectTheme(
+        accent: Color(0xFF0284C7),
+        gradient: LinearGradient(
+          colors: [Color(0xFF38BDF8), Color(0xFF0369A1)], // Light Sky Blue -> Dark Ocean Blue
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        icon: Icons.blur_on_rounded,
+      );
+    } else if (lower.contains('math') || lower.contains('algebra') || lower.contains('calculus')) {
+      return const _SubjectTheme(
+        accent: Color(0xFF8B5CF6),
+        gradient: LinearGradient(
+          colors: [Color(0xFFA78BFA), Color(0xFF5B21B6)], // Light Violet -> Dark Royal Purple
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        icon: Icons.functions_rounded,
+      );
+    } else if (lower.contains('chem')) {
+      return const _SubjectTheme(
+        accent: Color(0xFF10B981),
+        gradient: LinearGradient(
+          colors: [Color(0xFF34D399), Color(0xFF047857)], // Light Emerald -> Dark Forest Green
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        icon: Icons.science_rounded,
+      );
+    } else if (lower.contains('bio') || lower.contains('botany') || lower.contains('zoology')) {
+      return const _SubjectTheme(
+        accent: Color(0xFFEF4444),
+        gradient: LinearGradient(
+          colors: [Color(0xFFF87171), Color(0xFF991B1B)], // Light Coral -> Dark Ruby Red
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        icon: Icons.coronavirus_rounded,
+      );
+    }
+
+    return const _SubjectTheme(
+      accent: Color(0xFF3B82F6),
+      gradient: LinearGradient(
+        colors: [Color(0xFF60A5FA), Color(0xFF1E40AF)], // Light Indigo -> Dark Royal Blue
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      icon: Icons.assignment_rounded,
     );
   }
 }

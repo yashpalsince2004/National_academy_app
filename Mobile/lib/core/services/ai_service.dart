@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
@@ -154,8 +155,10 @@ Return a valid JSON array of exactly $questionCount question objects. Each objec
     final subjectLower = subjectName.toLowerCase();
     final selectedTopics = topics.isNotEmpty ? topics : [chapterName];
     final List<DppQuestionModel> results = [];
+    final seedOffset = Random().nextInt(10);
 
     for (int i = 1; i <= questionCount; i++) {
+      final idx = i + seedOffset;
       final topic = selectedTopics[(i - 1) % selectedTopics.length];
       final qType = questionTypes.isNotEmpty
           ? questionTypes[(i - 1) % questionTypes.length]
@@ -166,13 +169,13 @@ Return a valid JSON array of exactly $questionCount question objects. Each objec
       if (subjectLower.contains('biology') ||
           subjectLower.contains('zoology') ||
           subjectLower.contains('botany')) {
-        question = _buildBiologyMock(i, topic, chapterName, difficulty, qType, marksPerQuestion);
+        question = _buildBiologyMock(idx, topic, chapterName, difficulty, qType, marksPerQuestion);
       } else if (subjectLower.contains('chemistry')) {
-        question = _buildChemistryMock(i, topic, chapterName, difficulty, qType, marksPerQuestion);
+        question = _buildChemistryMock(idx, topic, chapterName, difficulty, qType, marksPerQuestion);
       } else if (subjectLower.contains('physics')) {
-        question = _buildPhysicsMock(i, topic, chapterName, difficulty, qType, marksPerQuestion);
+        question = _buildPhysicsMock(idx, topic, chapterName, difficulty, qType, marksPerQuestion);
       } else if (subjectLower.contains('math')) {
-        question = _buildMathsMock(i, topic, chapterName, difficulty, qType, marksPerQuestion);
+        question = _buildMathsMock(idx, topic, chapterName, difficulty, qType, marksPerQuestion);
       } else {
         question = DppQuestionModel(
           id: 'q-mock-$i',

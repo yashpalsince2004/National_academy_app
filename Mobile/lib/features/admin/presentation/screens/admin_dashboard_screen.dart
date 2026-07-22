@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../authentication/presentation/controllers/auth_controller.dart';
 import '../../../../core/widgets/floating_nav_bar.dart';
 import '../../../../core/widgets/grid_background.dart';
+import '../../../../core/widgets/tactile_button.dart';
 import '../widgets/home_tab.dart';
-import '../widgets/attendance_tab.dart';
+import '../../../../features/dpp/presentation/screens/dpp_dashboard_screen.dart';
 import '../widgets/lectures_tab.dart';
 import '../widgets/management_tab.dart';
 
@@ -22,14 +24,14 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
 
   final List<Widget> _tabs = const [
     HomeTab(),
-    AttendanceTab(),
+    DppDashboardScreen(),
     LecturesTab(),
     ManagementTab(),
   ];
 
   final List<String> _titles = const [
     'Dashboard',
-    'Attendance',
+    'DPP',
     'Lectures',
     'Management',
   ];
@@ -37,26 +39,38 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
-    return Scaffold(
-      extendBody: true,
-      body: GridBackground(
-        child: SafeArea(
-          bottom: false,
-          child: IndexedStack(
-            index: _currentIndex,
-            children: _tabs,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      ),
+      child: Scaffold(
+        extendBody: true,
+        body: GridBackground(
+          child: SafeArea(
+            bottom: false,
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _tabs,
+            ),
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        elevation: 0,
-        highlightElevation: 0,
-        backgroundColor: theme.colorScheme.primary,
-        foregroundColor: Colors.white,
-        child: const Icon(Icons.add),
-        onPressed: () => _showQuickActionsBottomSheet(context),
-      ),
+      floatingActionButton: _currentIndex == 1
+          ? null
+          : TactileButton(
+              onTap: () => _showQuickActionsBottomSheet(context),
+              child: FloatingActionButton(
+                elevation: 0,
+                highlightElevation: 0,
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                onPressed: () => _showQuickActionsBottomSheet(context),
+                child: const Icon(Icons.add),
+              ),
+            ),
       bottomNavigationBar: FloatingNavBar(
         currentIndex: _currentIndex,
         onTap: (index) {
@@ -71,9 +85,8 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
             label: 'Home',
           ),
           FloatingNavBarItem(
-            icon: Icons.checklist_rtl_outlined,
-            activeIcon: Icons.checklist_rtl_rounded,
-            label: 'Attendance',
+            customIconPath: 'assets/ai.png',
+            label: 'DPP',
           ),
           FloatingNavBarItem(
             icon: Icons.class_outlined,
@@ -87,8 +100,9 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _showQuickActionsBottomSheet(BuildContext context) {
     final theme = Theme.of(context);

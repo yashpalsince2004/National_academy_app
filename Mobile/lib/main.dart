@@ -85,7 +85,7 @@ class NationalAcademyApp extends ConsumerWidget {
       title: 'National Academy',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );

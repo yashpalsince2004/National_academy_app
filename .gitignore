@@ -10,3 +10,4 @@ Mobile/.flutter-plugins-dependencies
 Mobile/build/
 Mobile/node_modules/
 graphify-out/
+.idea/

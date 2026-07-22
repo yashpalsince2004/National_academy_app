@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/batch_student_model.dart';
 import '../../data/models/timetable_lecture_model.dart';
+import '../../data/models/exam_model.dart';
 import '../../data/repositories/batch_repository_impl.dart';
 import '../../domain/repositories/batch_repository.dart';
 import 'batch_controller.dart';
+import '../../../../core/services/supabase_providers.dart';
 
 class BatchDetailState {
   final bool isLoading;
@@ -13,6 +15,7 @@ class BatchDetailState {
   final List<Map<String, dynamic>> teachers;
   final List<Map<String, dynamic>> subjects;
   final List<TimetableLectureModel> lectures;
+  final List<ExamModel> exams;
   final Map<String, dynamic> attendanceStats;
   final Map<String, dynamic> performanceStats;
 
@@ -24,6 +27,7 @@ class BatchDetailState {
     this.teachers = const [],
     this.subjects = const [],
     this.lectures = const [],
+    this.exams = const [],
     this.attendanceStats = const {},
     this.performanceStats = const {},
   });
@@ -36,6 +40,7 @@ class BatchDetailState {
     List<Map<String, dynamic>>? teachers,
     List<Map<String, dynamic>>? subjects,
     List<TimetableLectureModel>? lectures,
+    List<ExamModel>? exams,
     Map<String, dynamic>? attendanceStats,
     Map<String, dynamic>? performanceStats,
   }) {
@@ -47,6 +52,7 @@ class BatchDetailState {
       teachers: teachers ?? this.teachers,
       subjects: subjects ?? this.subjects,
       lectures: lectures ?? this.lectures,
+      exams: exams ?? this.exams,
       attendanceStats: attendanceStats ?? this.attendanceStats,
       performanceStats: performanceStats ?? this.performanceStats,
     );
@@ -77,6 +83,7 @@ class BatchDetailController extends StateNotifier<BatchDetailState> {
       final students = await repository.fetchStudentsForBatch(batchId);
       final teachers = await repository.fetchTeachers();
       final lectures = await repository.fetchTimetable(batchId);
+      final exams = await repository.fetchExams(batchId);
       final attendance = await repository.fetchAttendanceStats(batchId);
       final performance = await repository.fetchPerformanceStats(batchId);
       
@@ -85,6 +92,7 @@ class BatchDetailController extends StateNotifier<BatchDetailState> {
         students: students,
         teachers: teachers,
         lectures: lectures,
+        exams: exams,
         attendanceStats: attendance,
         performanceStats: performance,
       );
@@ -185,6 +193,10 @@ class BatchDetailController extends StateNotifier<BatchDetailState> {
       );
       await repository.addLecture(lec);
       await loadAllDetails();
+      ref.invalidate(studentUpcomingLectureProvider);
+      ref.invalidate(studentUpcomingLecturesProvider);
+      ref.invalidate(studentLiveLectureProvider);
+      ref.invalidate(studentLectureAlertProvider);
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
       rethrow;
@@ -194,11 +206,75 @@ class BatchDetailController extends StateNotifier<BatchDetailState> {
   Future<void> deleteLecture(String lectureId) async {
     state = state.copyWith(isLoading: true);
     try {
+      // Find the lecture to add to cancelled list before deleting
+      try {
+        final lecture = state.lectures.firstWhere((l) => l.id == lectureId);
+        if (!CancelledLecturesManager.cancelledLectures.any((l) => l.id == lectureId)) {
+          CancelledLecturesManager.cancelledLectures.add(lecture);
+        }
+      } catch (_) {}
       await repository.deleteLecture(lectureId);
       await loadAllDetails();
+      ref.invalidate(studentUpcomingLectureProvider);
+      ref.invalidate(studentUpcomingLecturesProvider);
+      ref.invalidate(studentLiveLectureProvider);
+      ref.invalidate(studentLectureAlertProvider);
     } catch (e) {
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
       rethrow;
     }
   }
+
+  Future<void> addExam(ExamModel exam) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await repository.addExam(exam);
+      await loadAllDetails();
+      ref.invalidate(studentUpcomingTestProvider);
+      ref.invalidate(studentExamsListProvider);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> updateExam(ExamModel exam) async {
+    state = state.copyWith(isLoading: true);
+    try {
+      await repository.updateExam(exam);
+      await loadAllDetails();
+      ref.invalidate(studentUpcomingTestProvider);
+      ref.invalidate(studentExamsListProvider);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
+      rethrow;
+    }
+  }
+}
+
+class CancelledLecturesManager {
+  static final List<TimetableLectureModel> cancelledLectures = [
+    TimetableLectureModel(
+      id: 'cancelled-1',
+      batchId: 'mock-1',
+      subjectName: 'Physics',
+      teacherName: 'Mr. R. Sharma',
+      room: 'Room 101',
+      dayOfWeek: 'Monday',
+      startTime: '09:00 AM',
+      endTime: '10:30 AM',
+      lectureDate: '2026-07-16',
+    ),
+    TimetableLectureModel(
+      id: 'cancelled-2',
+      batchId: 'mock-1',
+      subjectName: 'Chemistry',
+      teacherName: 'Mrs. A. Gupta',
+      room: 'Room 102',
+      dayOfWeek: 'Wednesday',
+      startTime: '11:00 AM',
+      endTime: '12:30 PM',
+      lectureDate: '2026-07-15',
+    ),
+  ];
 }

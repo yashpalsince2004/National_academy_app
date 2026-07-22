@@ -1,10 +1,40 @@
 project_id = "vrprqzrykonusfsvegwk"
 
+# ── OpenRouter AI Gateway Functions ──────────────────────────────────────────
+# All Edge Functions run in Deno. verify_jwt = false allows manual JWT
+# verification in shared/auth.ts for fine-grained RBAC and custom error responses.
+
 [functions.generate-dpp]
 enabled = true
 verify_jwt = false
-import_map = "./functions/generate-dpp/deno.json"
 entrypoint = "./functions/generate-dpp/index.ts"
+
+[functions.generate-bpp]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/generate-bpp/index.ts"
+
+[functions.ai-chat]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/ai-chat/index.ts"
+
+[functions.explain-question]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/explain-question/index.ts"
+
+[functions.doubt-solver]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/doubt-solver/index.ts"
+
+[functions.notes-generator]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/notes-generator/index.ts"
+
+# ── Administrative Functions ──────────────────────────────────────────────────
 
 [functions.activate-student]
 enabled = true
@@ -21,4 +51,3 @@ verify_jwt = false
 [functions.create-teacher]
 enabled = true
 verify_jwt = false
-

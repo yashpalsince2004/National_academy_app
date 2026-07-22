@@ -1,249 +1,237 @@
-// Entry point for AI-powered Daily Practice Problem (DPP) Generator
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * generate-dpp/index.ts — Daily Practice Problem Generator (Gemini 2.5 Flash)
+ * Location: supabase/functions/generate-dpp/index.ts
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * ROUTE: POST /functions/v1/generate-dpp
+ * ACCESS: teacher, admin, super_admin
+ *
+ * WORKFLOW & ADMIN CONTROL
+ * ─────────────────────────
+ * 1. Only Teachers / Admins can generate DPPs.
+ * 2. Students NEVER call Gemini directly.
+ * 3. Workflow:
+ *    Admin Request → JWT Check → Rate Limit → Prompt Build → Gemini 2.5 Flash
+ *    → JSON Validation → Admin Preview → Database Save → Publish to Students.
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
 
-import { GenerateDppRequest } from "./types.ts";
-import { corsHeaders, buildErrorResponse, buildSuccessResponse } from "./utils.ts";
-import { PromptBuilder } from "./prompt_builder.ts";
-import { GeminiClient } from "./gemini_client.ts";
-import { ResponseParser } from "./parser.ts";
-import { PayloadValidator } from "./validator.ts";
-import { DatabaseLayer } from "./database.ts";
-import { EmbeddingClient } from "./embedding_client.ts";
+import { handleCors }                          from "../shared/cors.ts";
+import { withErrorBoundary }                   from "../shared/errors.ts";
+import { requireAuth }                         from "../shared/auth.ts";
+import { createLogger }                        from "../shared/logger.ts";
+import { validateDppRequest }                  from "../shared/validators.ts";
+import { AiFactory }                           from "../shared/ai/factory.ts";
+import { buildDppSystemPrompt, buildDppUserPrompt } from "../shared/prompt_builder.ts";
+import { parseAiJson, validateDppPayload }     from "../shared/json_parser.ts";
+import { successResponse }                     from "../shared/response.ts";
+import { checkRateLimit, logUsage, estimateCost } from "../shared/rate_limit.ts";
+import { generateCacheKey, getCachedResponse, setCachedResponse } from "../shared/cache.ts";
 
-serve(async (req) => {
-  // Handle CORS preflight request
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+Deno.serve(
+  withErrorBoundary("generate-dpp", async (req: Request) => {
+    const preflight = handleCors(req);
+    if (preflight) return preflight;
 
-  const requestStartTime = Date.now();
-  console.log("[generate-dpp] Invoked. Processing request...");
+    const startMs   = Date.now();
+    const requestId = `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    const log       = createLogger("generate-dpp", requestId);
+    log.requestStart(req.method, "generate-dpp");
 
-  try {
-    // ── 1. Verify User Authentication Session ─────────────────────────────
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return buildErrorResponse("Missing Authorization header", 401);
-    }
+    // Admin & Teacher authorization check
+    const auth = await requireAuth(req, ["teacher", "admin", "super_admin"]);
+    log.setUser(auth.id);
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    
-    // Create Supabase Client authenticated with the caller's JWT session
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false },
+    await checkRateLimit(auth.adminClient, auth.id, "generate-dpp", auth.tier, log);
+
+    const rawBody   = await req.json().catch(() => null);
+    const validated = validateDppRequest(rawBody);
+
+    log.info("DPP request validated", {
+      exam:          validated.exam,
+      subject:       validated.subject,
+      chapter:       validated.chapter,
+      difficulty:    validated.difficulty,
+      questionCount: validated.questionCount,
     });
 
-    const { data: { user }, error: authErr } = await userClient.auth.getUser();
-    if (authErr || !user) {
-      return buildErrorResponse(`Unauthorized: ${authErr?.message || "Invalid session"}`, 401);
-    }
+    const forceRefresh = rawBody?.forceRefresh === true || rawBody?.regenerate === true;
 
-    const userId = user.id;
-    console.log(`[generate-dpp] Authenticated User ID: ${userId}`);
-
-    // ── 2. Parse and Validate Request Payload ──────────────────────────────
-    const reqBody = await req.json().catch(() => null);
-    if (!reqBody) {
-      return buildErrorResponse("Invalid or malformed JSON request body", 400);
-    }
-
-    const {
-      exam,
-      subject,
-      chapter,
-      topics,
-      difficulty,
-      questionCount,
-      duration,
-      marks,
-      language = "English",
-      teacherInstructions = []
-    } = reqBody;
-
-    // Strict validation check on inputs
-    if (!exam || typeof exam !== "string") return buildErrorResponse("Missing parameter: exam target is required");
-    if (!subject || typeof subject !== "string") return buildErrorResponse("Missing parameter: subject is required");
-    if (!chapter || typeof chapter !== "string") return buildErrorResponse("Missing parameter: chapter is required");
-    if (!difficulty || typeof difficulty !== "string") return buildErrorResponse("Missing parameter: difficulty level is required");
-    if (typeof questionCount !== "number" || questionCount < 1 || questionCount > 200) {
-      return buildErrorResponse("Invalid parameter: questionCount must be between 1 and 200");
-    }
-    if (typeof duration !== "number" || duration < 5 || duration > 240) {
-      return buildErrorResponse("Invalid parameter: duration must be between 5 and 240 minutes");
-    }
-
-    // Privilege admin client for syllabus queries & transaction inserts
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { persistSession: false }
+    // ── Cache Lookup (bypassed on forceRefresh / regenerate) ────────────────
+    const cacheKey = await generateCacheKey("generate-dpp", {
+      exam:          validated.exam,
+      subject:       validated.subject,
+      chapter:       validated.chapter,
+      difficulty:    validated.difficulty,
+      questionCount: validated.questionCount,
+      questionType:  validated.questionType,
+      language:      validated.language,
     });
 
-    // ── 3. Syllabus Grounding & Topic Validation ──────────────────────────
-    const syllabusMetadata = await DatabaseLayer.fetchSyllabusMetadata(adminClient, exam, subject, chapter);
-    if (!syllabusMetadata) {
-      return buildErrorResponse(
-        `Validation Error: Selected Exam "${exam}" -> Subject "${subject}" -> Chapter "${chapter}" is not a valid syllabus path in our knowledge base.`,
-        400
-      );
-    }
-
-    // If custom topics were requested, validate that they are part of the syllabus
-    if (topics && Array.isArray(topics) && topics.length > 0) {
-      const allowedTopicsLower = syllabusMetadata.topics.map(t => t.trim().toLowerCase());
-      const invalidTopics = topics.filter(t => !allowedTopicsLower.includes(String(t).trim().toLowerCase()));
-      
-      if (invalidTopics.length > 0) {
-        return buildErrorResponse(
-          `Validation Error: The following topics do not belong to ${chapter}: [${invalidTopics.join(", ")}]. Allowed topics: [${syllabusMetadata.topics.join(", ")}]`,
-          400
+    if (!forceRefresh) {
+      const cached = await getCachedResponse(auth.adminClient, cacheKey, "generate-dpp", log);
+      if (cached) {
+        log.requestEnd(200);
+        return successResponse(
+          {
+            dppId:            cached.dppId,
+            dpp:              cached.dpp,
+            fromCache:        true,
+            generationTimeMs: 0,
+          },
+          requestId
         );
       }
     }
 
-    const validatedRequest: GenerateDppRequest = {
-      exam,
-      subject,
-      chapter,
-      topics: Array.isArray(topics) ? topics : undefined,
-      difficulty,
-      questionCount,
-      duration,
-      marks: typeof marks === "number" ? marks : undefined,
-      language,
-      teacherInstructions: Array.isArray(teacherInstructions) ? teacherInstructions : []
-    };
-
-    console.log(`[generate-dpp] Request Verified: ${exam} - ${subject} (${chapter}), Count: ${questionCount}`);
-
-    // ── 4. Initialize AI Services ──────────────────────────────────────────
-    const gemini = new GeminiClient();
-    const embeddingClient = new EmbeddingClient();
-    
-    const systemPrompt = PromptBuilder.buildSystemInstruction();
-    const userPrompt = PromptBuilder.buildUserPrompt(validatedRequest, syllabusMetadata.topics);
-
-    let parsedPayload: any = null;
-    let geminiRawText = "";
-    let generationTimeMs = 0;
-    let totalPromptTokens = 0;
-    let totalCompletionTokens = 0;
-    let retryAttempt = 0;
-    const maxAiRetries = 2; // Retry on validation or duplication failure
-    let lastError = "";
-
-    // ── 5. Generate, Audit, and Semantic Duplicate Check Loop ───────────────
-    while (retryAttempt <= maxAiRetries) {
-      try {
-        console.log(`[generate-dpp] Run #${retryAttempt + 1}: Step 1 - Generating initial DPP...`);
-        const result = await gemini.generateDppJson(systemPrompt, userPrompt);
-        generationTimeMs += result.generationTimeMs;
-        totalPromptTokens += result.promptTokens;
-        totalCompletionTokens += result.completionTokens;
-
-        // Parse JSON output from first pass
-        const rawPayload = ResponseParser.parseGeminiResponse(result.text);
-
-        console.log(`[generate-dpp] Run #${retryAttempt + 1}: Step 2 - Submitting generated DPP to AI Critic Auditor...`);
-        const reviewerPrompt = PromptBuilder.buildReviewerPrompt(exam, subject, chapter, JSON.stringify(rawPayload));
-        const reviewResult = await gemini.generateDppJson(systemPrompt, reviewerPrompt);
-        generationTimeMs += reviewResult.generationTimeMs;
-        totalPromptTokens += reviewResult.promptTokens;
-        totalCompletionTokens += reviewResult.completionTokens;
-
-        geminiRawText = reviewResult.text;
-        parsedPayload = ResponseParser.parseGeminiResponse(geminiRawText);
-
-        // Run schema and content validation rules
-        const validationErrors = PayloadValidator.validate(parsedPayload, validatedRequest);
-        if (validationErrors.length > 0) {
-          const errStr = validationErrors.join("; ");
-          console.warn(`[generate-dpp] Validation failed on Attempt #${retryAttempt + 1}:`, errStr);
-          throw new Error(`Validation failed: ${errStr}`);
-        }
-
-        // Run Semantic Duplicate Vector Check
-        const questionTexts = parsedPayload.questions.map((q: any) => q.question);
-        const duplicateErrors = await embeddingClient.detectDuplicates(questionTexts, 0.85);
-        if (duplicateErrors.length > 0) {
-          const dupStr = duplicateErrors.join("; ");
-          console.warn(`[generate-dpp] Semantic duplicate detection failed on Attempt #${retryAttempt + 1}:`, dupStr);
-          throw new Error(`Semantic duplicate check failed: ${dupStr}`);
-        }
-
-        // Successfully parsed, audited, validated, and passed semantic deduplication
-        break;
-
-      } catch (err) {
-        retryAttempt++;
-        lastError = (err as Error).message;
-        console.error(`[generate-dpp] AI generation, audit, or deduplication phase failed (Attempt ${retryAttempt}/${maxAiRetries + 1}): ${lastError}`);
-        
-        if (retryAttempt > maxAiRetries) {
-          // Log failure state to telemetry
-          await DatabaseLayer.logAiGeneration(adminClient, {
-            userId,
-            exam,
-            subject,
-            chapter,
-            promptTokens: totalPromptTokens,
-            completionTokens: totalCompletionTokens,
-            generationTimeMs,
-            status: "failed",
-            error: lastError,
-          });
-          return buildErrorResponse(`AI formulation failed validation checks after retries. Error: ${lastError}`, 502);
-        }
-      }
+    // ── Build System & User Prompts ───────────────────────────────────────
+    const systemPrompt = buildDppSystemPrompt();
+    let userPrompt   = buildDppUserPrompt(validated, validated.topics ?? []);
+    if (forceRefresh) {
+      userPrompt += `\n\n[REGENERATION DIRECTIVE: Generate a completely fresh, unique set of questions different from previous outputs. Request ID: ${requestId}]`;
     }
 
-    // ── 6. Database Insertion Layer (Transaction-Safe) ──────────────────
-    console.log("[generate-dpp] Saving generated DPP package in transaction...");
-    const dppId = await DatabaseLayer.saveDpp(
-      adminClient,
-      validatedRequest,
-      parsedPayload,
-      userId,
-      userPrompt,
-      geminiRawText
+    // ── Execute via AI Gateway (OpenRouter primary, Gemini fallback) ──────
+    const aiProvider = AiFactory.getProvider(log, "openrouter");
+    let aiResult;
+    let aiError: string | undefined;
+
+    try {
+      aiResult = await aiProvider.generateJSON("dpp", systemPrompt, userPrompt);
+    } catch (err) {
+      aiError = err instanceof Error ? err.message : String(err);
+      await logUsage(auth.adminClient, {
+        userId: auth.id, feature: "generate-dpp",
+        model: "gemini-2.5-flash", provider: "gemini",
+        promptTokens: 0, completionTokens: 0, estimatedCostUsd: 0,
+        latencyMs: Date.now() - startMs, status: "failed", error: aiError,
+      }, log);
+      throw err;
+    }
+
+    // ── Parse + Validate AI JSON ───────────────────────────────────────────
+    console.log("************* VERSION 7 *************");
+    console.log("========== RAW GEMINI RESPONSE ==========");
+    console.log(aiResult.text);
+    console.log("=========================================");
+
+    const dppPayload = parseAiJson<Record<string, unknown>>(aiResult.text);
+    const validationErrors = validateDppPayload(dppPayload, validated.questionCount);
+    if (validationErrors.length > 0) {
+      log.warn("DPP payload validation warnings", { errors: validationErrors });
+    }
+
+    // ── Save Generated DPP to DB (Draft status for admin preview) ─────────
+    let dppId: string | null = null;
+    try {
+      const { data: savedDpp } = await auth.adminClient
+        .from("dpps")
+        .insert({
+          teacher_id:     auth.id,
+          exam:           validated.exam,
+          subject:        validated.subject,
+          chapter:        validated.chapter,
+          difficulty:     validated.difficulty,
+          question_count: validated.questionCount,
+          duration:       validated.duration,
+          marks:          validated.marks,
+          language:       validated.language,
+          question_type:  validated.questionType,
+          content:        dppPayload,
+          model:          aiResult.model,
+          status:         "active",
+        })
+        .select("id")
+        .single();
+
+      dppId = savedDpp?.id ?? null;
+      log.info("DPP saved to DB", { dppId });
+
+      // ── Insert Questions into dpp_questions table ─────────────────────────
+      const rawQuestions = Array.isArray(dppPayload.questions)
+        ? (dppPayload.questions as Array<Record<string, unknown>>)
+        : Array.isArray(dppPayload.data)
+        ? (dppPayload.data as Array<Record<string, unknown>>)
+        : [];
+
+      if (dppId && rawQuestions.length > 0) {
+        const marksPerQ = Math.max(1, Math.floor((validated.marks ?? 40) / validated.questionCount));
+
+        const questionsToInsert = rawQuestions.map((q, idx) => {
+          let expStr = "";
+          if (typeof q.explanation === "string") {
+            expStr = q.explanation;
+          } else if (typeof q.explanation === "object" && q.explanation !== null) {
+            const expObj = q.explanation as Record<string, unknown>;
+            expStr = String(expObj.step_by_step || expObj.correct_answer || JSON.stringify(expObj));
+          }
+
+          let correctAns = String(q.correct_answer || q.answer || "A");
+          if (correctAns.length === 1 && Array.isArray(q.options) && q.options.length >= 4) {
+            // Convert 'A', 'B', 'C', 'D' index to option text or label
+            const charCode = correctAns.toUpperCase().charCodeAt(0);
+            const optIdx = charCode - 65; // 'A' -> 0
+            if (optIdx >= 0 && optIdx < q.options.length) {
+              correctAns = String(q.options[optIdx]);
+            }
+          }
+
+          return {
+            dpp_id: dppId,
+            question_text: String(q.question_text || q.question || `Question ${idx + 1}`),
+            question_type: String(q.question_type || q.type || validated.questionType || "Single Correct"),
+            options: Array.isArray(q.options) ? q.options : [],
+            correct_answer: correctAns,
+            explanation: expStr,
+            difficulty: String(q.difficulty || validated.difficulty),
+            estimated_time_seconds: Number(q.estimated_time_seconds || q.estimated_time || 90),
+            marks: Number(q.marks || marksPerQ),
+            learning_outcome: String(q.learning_outcome || q.concept || ""),
+          };
+        });
+
+        const { error: qErr } = await auth.adminClient.from("dpp_questions").insert(questionsToInsert);
+        if (qErr) {
+          log.error("Failed to insert dpp_questions", qErr);
+        } else {
+          log.info("DPP questions saved to DB", { count: questionsToInsert.length });
+        }
+      }
+    } catch (dbErr) {
+      log.error("Failed to save DPP (non-fatal)", dbErr);
+    }
+
+    // ── Telemetry & Cache ──────────────────────────────────────────────────
+    const cost = estimateCost(aiResult.model, aiResult.promptTokens, aiResult.completionTokens);
+    await logUsage(auth.adminClient, {
+      userId:           auth.id,
+      feature:          "generate-dpp",
+      model:            aiResult.model,
+      provider:         aiResult.provider,
+      promptTokens:     aiResult.promptTokens,
+      completionTokens: aiResult.completionTokens,
+      estimatedCostUsd: cost,
+      latencyMs:        aiResult.latencyMs,
+      status:           "success",
+    }, log);
+
+    await setCachedResponse(auth.adminClient, cacheKey, "generate-dpp", { dppId, dpp: dppPayload }, log);
+
+    const totalMs = Date.now() - startMs;
+    log.requestEnd(200);
+
+    return successResponse(
+      {
+        dppId,
+        dpp:              dppPayload,
+        fromCache:        false,
+        generationTimeMs: totalMs,
+        model:            aiResult.model,
+        tokensUsed:       aiResult.totalTokens,
+        finishReason:     aiResult.finishReason,
+      },
+      requestId
     );
-
-    // ── 7. Log Telemetry to Database ──────────────────────────────────────
-    await DatabaseLayer.logAiGeneration(adminClient, {
-      userId,
-      exam,
-      subject,
-      chapter,
-      promptTokens: totalPromptTokens,
-      completionTokens: totalCompletionTokens,
-      generationTimeMs,
-      status: "success",
-    });
-
-    const totalProcessingTime = Date.now() - requestStartTime;
-    console.log(`[TELEMETRY] generate-dpp complete!`);
-    console.log(`- Exam: ${exam}`);
-    console.log(`- Subject: ${subject}`);
-    console.log(`- Chapter: ${chapter}`);
-    console.log(`- Questions: ${questionCount}`);
-    console.log(`- Generation time: ${generationTimeMs}ms`);
-    console.log(`- Total latency: ${totalProcessingTime}ms`);
-    console.log(`- Tokens: ${totalPromptTokens + totalCompletionTokens} (Prompt: ${totalPromptTokens}, Completion: ${totalCompletionTokens})`);
-
-    // ── 8. Return Final Response ──────────────────────────────────────────
-    return buildSuccessResponse({
-      success: true,
-      dppId,
-      title: parsedPayload.title,
-      questionCount: parsedPayload.questions.length,
-      estimatedDuration: parsedPayload.duration
-    });
-
-  } catch (globalErr) {
-    const errorMsg = globalErr instanceof Error ? globalErr.message : String(globalErr);
-    console.error(`[generate-dpp] Global execution crash: ${errorMsg}`);
-    return buildErrorResponse(`Global execution crash: ${errorMsg}`, 500);
-  }
-});
+  })
+);

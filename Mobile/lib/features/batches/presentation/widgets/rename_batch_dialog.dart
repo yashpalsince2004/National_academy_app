@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/batch_model.dart';
+import '../../../../core/utils/toast_utils.dart';
 import '../controllers/batch_controller.dart';
 
 class RenameBatchDialog extends ConsumerStatefulWidget {
@@ -196,7 +197,6 @@ class _RenameBatchDialogState extends ConsumerState<RenameBatchDialog> {
                         if (!_formKey.currentState!.validate()) return;
                         setState(() => _saving = true);
                         final navigator = Navigator.of(context);
-                        final messenger = ScaffoldMessenger.of(context);
                         try {
                           final updated = widget.batch.copyWith(
                             name: _controller.text.trim(),
@@ -207,22 +207,12 @@ class _RenameBatchDialogState extends ConsumerState<RenameBatchDialog> {
                               .updateBatch(updated);
                           if (mounted) {
                             navigator.pop();
-                            messenger.showSnackBar(
-                              const SnackBar(
-                                content: Text('Batch updated successfully.'),
-                                backgroundColor: Color(0xFF34C759),
-                              ),
-                            );
+                            ToastUtils.showSuccess(context, 'Batch updated successfully.', aboveNavBar: true);
                           }
                         } catch (e) {
                           if (mounted) {
                             setState(() => _saving = false);
-                            messenger.showSnackBar(
-                              SnackBar(
-                                content: Text('Error: $e'),
-                                backgroundColor: Colors.redAccent,
-                              ),
-                            );
+                            ToastUtils.showError(context, 'Error: $e');
                           }
                         }
                       },

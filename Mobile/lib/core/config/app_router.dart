@@ -15,6 +15,9 @@ import '../../features/admin/presentation/screens/admin_registration_screen.dart
 import '../../features/admin/presentation/screens/admin_students_data_screen.dart';
 import '../../features/admin/presentation/screens/teacher_registration_screen.dart';
 import '../../features/admin/presentation/screens/admin_teachers_data_screen.dart';
+import '../../features/admin/presentation/screens/previous_lectures_screen.dart';
+import '../../features/admin/presentation/screens/previous_tests_screen.dart';
+import '../../features/admin/presentation/screens/attendance_record_screen.dart';
 import '../../features/student/presentation/screens/student_dashboard_screen.dart';
 import '../../features/student/presentation/registration/student_registration_screen.dart' as student_reg;
 import '../../features/batches/presentation/screens/batch_dashboard_screen.dart';
@@ -222,6 +225,30 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/admin/dpp/history',
         name: 'admin-dpp-history',
         builder: (context, state) => const DppHistoryScreen(),
+      ),
+      GoRoute(
+        path: '/admin/previous-lectures',
+        name: 'admin-previous-lectures',
+        builder: (context, state) {
+          final defaultBatch = state.uri.queryParameters['batch'] ?? 'Veera';
+          return PreviousLecturesScreen(defaultBatch: defaultBatch);
+        },
+      ),
+      GoRoute(
+        path: '/admin/previous-tests',
+        name: 'admin-previous-tests',
+        builder: (context, state) {
+          final defaultBatch = state.uri.queryParameters['batch'] ?? 'Veera';
+          return PreviousTestsScreen(defaultBatch: defaultBatch);
+        },
+      ),
+      GoRoute(
+        path: '/admin/attendance-record',
+        name: 'admin-attendance-record',
+        builder: (context, state) {
+          final defaultBatch = state.uri.queryParameters['batch'] ?? 'Veera';
+          return AttendanceRecordScreen(defaultBatch: defaultBatch);
+        },
       ),
     ],
   );
